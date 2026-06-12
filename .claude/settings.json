@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allowedTools": [
+      "Read", "Edit", "Write",
+      "Bash(npm *)", "Bash(npx *)", "Bash(git *)", "Bash(node *)"
+    ],
+    "deny": [
+      "Read(./.env.local)",
+      "Read(./.env*)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}
