@@ -1,5 +1,5 @@
 # LaunchTrain — Product Spec (SPEC.md)
-**Version:** 1.1 | **Date:** 2026-06-12 | **UI language:** English only | **Target market:** Global (US/EU first)
+**Version:** 1.2 | **Date:** 2026-06-12 | **UI language:** English only | **Target market:** Global (US/EU first)
 **Status:** Source of truth for implementation. The Hebrew companion document is for the product owner; if they ever diverge, THIS file governs the code.
 
 > **Product thesis:** Everyone else sells testers. LaunchTrain sells the approval.
@@ -240,13 +240,15 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | email | text | yes | from OAuth |
 | testing_email | text | yes | default = email |
 | display_name | text | yes | |
-| country | text | yes | ISO-2 |
+| country | text | yes | ISO-2; DB default `''` until onboarding completes, CHECK enforces ISO-2 once onboarded |
 | avatar_url | text | no | from Google |
 | role | enum(user,admin) | yes | default user |
 | reliability_score | int | yes | default 100, range 0–100 |
 | is_founding_member | bool | yes | default false |
 | onboarded_at | timestamptz | no | null = onboarding incomplete |
 | created_at | timestamptz | yes | |
+
+> **Row creation:** a DB trigger creates the profile row at first sign-in (display name from Google metadata, `testing_email` = login email, `country` = `''` placeholder). `onboarded_at` stays NULL until onboarding completes; a DB guard allows setting it only with a real country, display name, and ≥1 device. A DB guard also freezes `testing_email` while any engagement is active (pending_developer/confirmed/at_risk).
 
 ### devices
 | Field | Type | Required | Notes |
@@ -280,6 +282,9 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | icon_url / screenshots | text / jsonb | no | Storage paths |
 | created_at / published_at | timestamptz | yes/no | |
 
+> **Unique constraint:** one non-terminal request per (owner_id, package_name) — draft/recruiting/active/at_risk block a duplicate; completed/cancelled/expired do not.
+> **Public visibility (RLS):** guests read statuses recruiting/at_risk/active/completed; draft is owner-only; cancelled/expired are not publicly readable.
+
 ### engagements
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -289,6 +294,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | device_id | uuid | yes | FK → devices |
 | status | enum | yes | pending_developer, confirmed, at_risk, completed, dropped, cancelled |
 | joined_at | timestamptz | yes | |
+| opted_in_at | timestamptz | no | set by markOptedIn ("I've opted in & installed") |
 | confirmed_at | timestamptz | no | personal clock start |
 | completed_at | timestamptz | no | |
 | last_checkin_at | timestamptz | no | |
@@ -316,6 +322,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | suggestions | text | no | |
 | usage_frequency | enum(daily,few_weekly,rarely) | yes | |
 | developer_rating | enum(helpful,not_helpful) | no | triggers bonus once |
+| addendum | text | no | post-submission addendum note; all other fields immutable after submit (F4) |
 | created_at | timestamptz | yes | |
 
 ### credit_transactions
