@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      // Google account avatars
+      { protocol: "https", hostname: "*.googleusercontent.com" },
+    ],
+  },
 };
 
 export default nextConfig;

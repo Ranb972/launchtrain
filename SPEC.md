@@ -1,5 +1,5 @@
 # LaunchTrain — Product Spec (SPEC.md)
-**Version:** 1.2 | **Date:** 2026-06-12 | **UI language:** English only | **Target market:** Global (US/EU first)
+**Version:** 1.3 | **Date:** 2026-06-12 | **UI language:** English only | **Target market:** Global (US/EU first)
 **Status:** Source of truth for implementation. The Hebrew companion document is for the product owner; if they ever diverge, THIS file governs the code.
 
 > **Product thesis:** Everyone else sells testers. LaunchTrain sells the approval.
@@ -11,7 +11,7 @@
 ## 0. Ground Rules for the Implementing Agent
 
 1. **This file governs.** Read it before any task. On conflict or ambiguity between code, chat instructions, and SPEC.md — stop and ask the human (Ran). Never improvise product rules.
-2. **TypeScript strict.** Next.js 15 App Router, Server Components by default, Tailwind only.
+2. **TypeScript strict.** Next.js 16 App Router (approved upgrade from the originally specced 15, 2026-06-12; note: `middleware.ts` is `proxy.ts` in v16), Server Components by default, Tailwind only.
 3. **All date/time logic in UTC.** A "day" boundary is UTC midnight. Streaks, check-ins, and clocks are computed in UTC everywhere (DB, cron, UI labels may localize display only).
 4. **Credits move only through `credit_transactions` rows**, created inside the same DB transaction as the state change that caused them. The `users` table has NO balance column.
 5. **RLS on every table.** `SUPABASE_SERVICE_ROLE_KEY` is used server-side only. Never expose secrets to the client. Never read or print `.env*` files in logs.
@@ -186,7 +186,7 @@
 ## 5. Technical Architecture (MVP)
 
 - **Stack:**
-  - Frontend: Next.js 15 (App Router) + TypeScript (strict) + Tailwind CSS
+  - Frontend: Next.js 16 (App Router) + TypeScript (strict) + Tailwind CSS v4
   - Backend: Next.js Route Handlers + Server Actions (no separate server)
   - Scheduled jobs: Vercel Cron → `/api/cron/daily-clocks` (daily 00:15 UTC), `/api/cron/reminders` (hourly)
   - DB / Auth / Storage: Supabase (Postgres + Row Level Security, Google OAuth, Storage for images)
