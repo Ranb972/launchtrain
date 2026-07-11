@@ -5,6 +5,7 @@ import {
   completeOnboarding,
   type OnboardingState,
 } from "@/app/onboarding/actions";
+import { DeviceFields } from "@/components/device-fields";
 import { COUNTRIES } from "@/lib/countries";
 
 const INPUT =
@@ -95,31 +96,7 @@ export function OnboardingForm({
         <div className="space-y-3">
           {deviceRows.map((rowId, index) => (
             <div key={rowId} className="flex items-start gap-2">
-              <div className="grid flex-1 grid-cols-3 gap-2">
-                <input
-                  name="manufacturer"
-                  type="text"
-                  placeholder="Manufacturer"
-                  aria-label={`Device ${index + 1} manufacturer`}
-                  className={INPUT}
-                />
-                <input
-                  name="model"
-                  type="text"
-                  placeholder="Model"
-                  aria-label={`Device ${index + 1} model`}
-                  className={INPUT}
-                />
-                <input
-                  name="android_version"
-                  type="number"
-                  min={1}
-                  max={50}
-                  placeholder="Android (e.g. 15)"
-                  aria-label={`Device ${index + 1} Android version`}
-                  className={INPUT}
-                />
-              </div>
+              <DeviceFields ariaPrefix={`Device ${index + 1}`} />
               {deviceRows.length > 1 && (
                 <button
                   type="button"

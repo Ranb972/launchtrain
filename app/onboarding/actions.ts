@@ -4,9 +4,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { COUNTRY_CODES } from "@/lib/countries";
 import {
+  ANDROID_VERSION_MAX,
+  ANDROID_VERSION_MIN,
   DISPLAY_NAME_MAX,
   EMAIL_RE,
+  NON_ANDROID_MANUFACTURER_ERROR,
+  NON_ANDROID_MANUFACTURER_RE,
   parseAndroidVersion,
+  resolveManufacturer,
 } from "@/lib/validation";
 
 export type OnboardingState = { error?: string };
@@ -42,7 +47,8 @@ export async function completeOnboarding(
     return { error: "Please enter a valid testing email address." };
   }
 
-  const manufacturers = formData.getAll("manufacturer").map(String);
+  const manufacturerChoices = formData.getAll("manufacturer").map(String);
+  const manufacturerOthers = formData.getAll("manufacturer_other").map(String);
   const models = formData.getAll("model").map(String);
   const versions = formData.getAll("android_version").map(String);
 
@@ -51,16 +57,23 @@ export async function completeOnboarding(
     model: string;
     android_version: number;
   }[] = [];
-  for (let i = 0; i < manufacturers.length; i++) {
-    const manufacturer = (manufacturers[i] ?? "").trim();
+  for (let i = 0; i < manufacturerChoices.length; i++) {
+    const choice = (manufacturerChoices[i] ?? "").trim();
     const model = (models[i] ?? "").trim();
     const versionRaw = (versions[i] ?? "").trim();
-    if (!manufacturer && !model && !versionRaw) continue; // fully empty row
+    if (!choice && !model && !versionRaw) continue; // fully empty row
+    const manufacturer = resolveManufacturer(
+      choice,
+      manufacturerOthers[i] ?? "",
+    );
     const androidVersion = parseAndroidVersion(versionRaw);
     if (!manufacturer || !model || androidVersion === null) {
       return {
-        error: `Device ${i + 1} is incomplete — manufacturer, model, and a valid Android version are required.`,
+        error: `Device ${i + 1} is incomplete — manufacturer, model, and an Android version between ${ANDROID_VERSION_MIN} and ${ANDROID_VERSION_MAX} are required.`,
       };
+    }
+    if (NON_ANDROID_MANUFACTURER_RE.test(manufacturer)) {
+      return { error: NON_ANDROID_MANUFACTURER_ERROR };
     }
     devices.push({ manufacturer, model, android_version: androidVersion });
   }

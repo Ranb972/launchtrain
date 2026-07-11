@@ -4,9 +4,14 @@ import { revalidatePath } from "next/cache";
 import { requireOnboardedUser } from "@/lib/auth";
 import { COUNTRY_CODES } from "@/lib/countries";
 import {
+  ANDROID_VERSION_MAX,
+  ANDROID_VERSION_MIN,
   DISPLAY_NAME_MAX,
   EMAIL_RE,
+  NON_ANDROID_MANUFACTURER_ERROR,
+  NON_ANDROID_MANUFACTURER_RE,
   parseAndroidVersion,
+  resolveManufacturer,
 } from "@/lib/validation";
 
 export type SettingsState = { error?: string; success?: string };
@@ -90,7 +95,10 @@ export async function addDevice(
 ): Promise<SettingsState> {
   const { supabase, user } = await requireOnboardedUser();
 
-  const manufacturer = String(formData.get("manufacturer") ?? "").trim();
+  const manufacturer = resolveManufacturer(
+    String(formData.get("manufacturer") ?? ""),
+    String(formData.get("manufacturer_other") ?? ""),
+  );
   const model = String(formData.get("model") ?? "").trim();
   const androidVersion = parseAndroidVersion(
     String(formData.get("android_version") ?? "").trim(),
@@ -98,9 +106,11 @@ export async function addDevice(
 
   if (!manufacturer || !model || androidVersion === null) {
     return {
-      error:
-        "Manufacturer, model, and a valid Android version (1–50) are required.",
+      error: `Manufacturer, model, and an Android version between ${ANDROID_VERSION_MIN} and ${ANDROID_VERSION_MAX} are required.`,
     };
+  }
+  if (NON_ANDROID_MANUFACTURER_RE.test(manufacturer)) {
+    return { error: NON_ANDROID_MANUFACTURER_ERROR };
   }
 
   const { error } = await supabase.from("devices").insert({

@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   addDevice,
   removeDevice,
   updateProfile,
   type SettingsState,
 } from "@/app/settings/actions";
+import { DeviceFields } from "@/components/device-fields";
 import { COUNTRIES } from "@/lib/countries";
 
 const INPUT =
@@ -111,7 +112,8 @@ export function ProfileForm({
         )}
       </div>
 
-      <Messages state={state} />
+      {/* Hidden while a save is in flight so a stale message never lingers. */}
+      {!isPending && <Messages state={state} />}
 
       <button
         type="submit"
@@ -134,14 +136,19 @@ export function DeviceManager({
     android_version: number;
   }[];
 }) {
-  const [removeState, removeAction, isRemoving] = useActionState<
+  const [lastIntent, setLastIntent] = useState<"add" | "remove">("add");
+  // One state for add AND remove: only the latest action's message exists,
+  // and it is hidden while the next action is pending (stale-banner fix).
+  const [state, deviceAction, isPending] = useActionState<
     SettingsState,
     FormData
-  >(removeDevice, {});
-  const [addState, addAction, isAdding] = useActionState<
-    SettingsState,
-    FormData
-  >(addDevice, {});
+  >((prev, formData) => {
+    const intent = formData.get("intent") === "remove" ? "remove" : "add";
+    setLastIntent(intent);
+    return intent === "remove"
+      ? removeDevice(prev, formData)
+      : addDevice(prev, formData);
+  }, {});
 
   return (
     <div className="space-y-5">
@@ -157,11 +164,12 @@ export function DeviceManager({
                 Android {device.android_version}
               </span>
             </span>
-            <form action={removeAction}>
+            <form action={deviceAction}>
+              <input type="hidden" name="intent" value="remove" />
               <input type="hidden" name="device_id" value={device.id} />
               <button
                 type="submit"
-                disabled={isRemoving}
+                disabled={isPending}
                 className="text-zinc-500 transition-colors hover:text-red-400 disabled:opacity-50"
               >
                 Remove
@@ -171,46 +179,18 @@ export function DeviceManager({
         ))}
       </ul>
 
-      <Messages state={removeState} />
+      {!isPending && <Messages state={state} />}
 
-      <form action={addAction} className="space-y-3">
-        <div className="grid grid-cols-3 gap-2">
-          <input
-            name="manufacturer"
-            type="text"
-            required
-            placeholder="Manufacturer"
-            aria-label="New device manufacturer"
-            className={INPUT}
-          />
-          <input
-            name="model"
-            type="text"
-            required
-            placeholder="Model"
-            aria-label="New device model"
-            className={INPUT}
-          />
-          <input
-            name="android_version"
-            type="number"
-            required
-            min={1}
-            max={50}
-            placeholder="Android (e.g. 15)"
-            aria-label="New device Android version"
-            className={INPUT}
-          />
-        </div>
-
-        <Messages state={addState} />
+      <form action={deviceAction} className="space-y-3">
+        <input type="hidden" name="intent" value="add" />
+        <DeviceFields ariaPrefix="New device" required />
 
         <button
           type="submit"
-          disabled={isAdding}
+          disabled={isPending}
           className="rounded-lg border border-emerald-700 px-5 py-2 text-sm font-semibold text-emerald-400 transition-colors hover:bg-emerald-950 disabled:opacity-50"
         >
-          {isAdding ? "Adding..." : "+ Add device"}
+          {isPending && lastIntent === "add" ? "Adding..." : "+ Add device"}
         </button>
       </form>
     </div>

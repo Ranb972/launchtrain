@@ -1,6 +1,7 @@
 # LaunchTrain — Product Spec (SPEC.md)
-**Version:** 1.3 | **Date:** 2026-06-12 | **UI language:** English only | **Target market:** Global (US/EU first)
+**Version:** 1.4 | **Date:** 2026-07-11 | **UI language:** English only | **Target market:** Global (US/EU first)
 **Status:** Source of truth for implementation. The Hebrew companion document is for the product owner; if they ever diverge, THIS file governs the code.
+**Changelog:** 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
 
 > **Product thesis:** Everyone else sells testers. LaunchTrain sells the approval.
 > The single success metric is the % of developers who obtain Google Play Production Access.
@@ -59,7 +60,7 @@
 **Trigger:** First visit, click "Board the Train".
 **Steps:**
 1. Landing page → "Sign in with Google" → Supabase Auth (OAuth) → redirected back, authenticated.
-2. Onboarding form (single step): display name (default from Google), country (dropdown, ISO-2), testing Gmail (default = login email; editable — this is the email used for Play opt-in), and at least one device: manufacturer, model, Android version.
+2. Onboarding form (single step): display name (default from Google), country (dropdown, ISO-2), testing Gmail (default = login email; editable — this is the email used for Play opt-in), and at least one device: manufacturer (curated select; "Other" reveals a required free-text input), model, Android version (8–30).
 3. → Empty Dashboard with two CTAs: "Get your app tested" / "Test apps & earn credits".
 **Success state:** User with complete profile + ≥1 device sees the Dashboard.
 **Error states:** OAuth fails → error screen + Retry. User abandons onboarding → next login returns them to the form (not the Dashboard); no actions allowed before onboarding completes. Existing email → Supabase signs into existing account.
@@ -132,8 +133,8 @@
 
 ### Feature F1: Auth & Profiles
 - **Description:** Google-only sign-in (Supabase Auth OAuth); profile with testing details and devices.
-- **User-facing behavior:** Single "Sign in with Google" button. Settings page: edit display name, country, testing Gmail, manage devices (add/remove). Public profile page: name, badges, Reliability Score, completed-tests counter.
-- **Business logic:** User is blocked from all actions until onboarding completes (profile + ≥1 device). `testing_email` defaults to login email. Default `role` = `user`.
+- **User-facing behavior:** Single "Sign in with Google" button. Settings page: edit display name, country, testing Gmail, manage devices (add/remove; manufacturer is a curated select with an "Other" free-text option, same as onboarding). Public profile page: name, badges, Reliability Score, completed-tests counter.
+- **Business logic:** User is blocked from all actions until onboarding completes (profile + ≥1 device). `testing_email` defaults to login email. Default `role` = `user`. Device data is Google Play-only: manufacturer values matching apple/iphone/ipad/ios (case-insensitive) are rejected server-side; `android_version` must be 8–30, enforced in the form, the server action, and a DB CHECK.
 - **Edge cases:** Deleting a device linked to an active engagement → blocked. Changing `testing_email` while any engagement is active → blocked (it's already on developers' lists).
 - **Priority:** MVP
 
@@ -255,9 +256,9 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 |---|---|---|---|
 | id | uuid | yes | PK |
 | user_id | uuid | yes | FK → users |
-| manufacturer | text | yes | |
+| manufacturer | text | yes | curated select (Samsung, Google, Xiaomi, OnePlus, Oppo, Vivo, Motorola, Huawei, Honor, Realme, Nothing, Sony, Asus) or free text via "Other"; Apple/iOS values rejected — Google Play only |
 | model | text | yes | |
-| android_version | int | yes | API major, e.g. 14 |
+| android_version | int | yes | API major, e.g. 14; range 8–30 (DB CHECK — Android 8.0 Oreo floor, generous future ceiling) |
 | created_at | timestamptz | yes | |
 
 ### test_requests
