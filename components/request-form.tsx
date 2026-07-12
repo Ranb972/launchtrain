@@ -9,6 +9,7 @@ import {
 import {
   ALLOWED_IMAGE_TYPES,
   CATEGORIES,
+  CATEGORY_LABELS,
   DESCRIPTION_MAX,
   GROUP_URL_PREFIX,
   IMAGE_MAX_BYTES,
@@ -22,7 +23,7 @@ import {
   extractPackageName,
 } from "@/lib/requests";
 import { screenshotPublicUrl } from "@/lib/storage";
-import type { Enums, Tables } from "@/lib/supabase/types";
+import type { Tables } from "@/lib/supabase/types";
 
 const INPUT =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none";
@@ -30,18 +31,6 @@ const LABEL = "mb-1 block text-sm font-medium text-zinc-300";
 const HINT = "mt-1 text-xs text-zinc-500";
 const FILE_INPUT =
   "block w-full text-sm text-zinc-400 file:mr-3 file:rounded-md file:border file:border-zinc-700 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:text-zinc-300 hover:file:border-emerald-700";
-
-const CATEGORY_LABELS: Record<Enums<"request_category">, string> = {
-  games: "Games",
-  productivity: "Productivity",
-  social: "Social",
-  tools: "Tools",
-  lifestyle: "Lifestyle",
-  education: "Education",
-  finance: "Finance",
-  health: "Health",
-  other: "Other",
-};
 
 function Counter({ value, max }: { value: number; max: number }) {
   return (

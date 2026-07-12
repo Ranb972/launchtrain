@@ -16,6 +16,18 @@ export const CATEGORIES: Enums<"request_category">[] = [
   "other",
 ];
 
+export const CATEGORY_LABELS: Record<Enums<"request_category">, string> = {
+  games: "Games",
+  productivity: "Productivity",
+  social: "Social",
+  tools: "Tools",
+  lifestyle: "Lifestyle",
+  education: "Education",
+  finance: "Finance",
+  health: "Health",
+  other: "Other",
+};
+
 export const DESCRIPTION_MAX = 300;
 export const INSTRUCTIONS_MAX = 1000;
 export const SLOTS_MIN = 1;

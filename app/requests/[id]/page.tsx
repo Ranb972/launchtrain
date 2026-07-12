@@ -4,19 +4,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PublishSection } from "@/components/publish-section";
 import { FoundingBadge, StatusChip } from "@/components/status-chip";
+import { CATEGORY_LABELS } from "@/lib/requests";
 import { screenshotPaths, screenshotPublicUrl } from "@/lib/storage";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  games: "Games",
-  productivity: "Productivity",
-  social: "Social",
-  tools: "Tools",
-  lifestyle: "Lifestyle",
-  education: "Education",
-  finance: "Finance",
-  health: "Health",
-  other: "Other",
-};
 
 type Params = Promise<{ id: string }>;
 
