@@ -47,8 +47,8 @@ LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (c
 - [x] F1 Auth & Profiles — Google OAuth, onboarding, settings, device management
 - [x] Device data integrity — curated manufacturer list, Android 8–30 bounds enforced form → server action → DB CHECK
 - [x] AI provider layer (env-swappable, SPEC §5.1)
-- [ ] F2 Test Request Board — create/publish requests, public board, manage page ← **up next**
-- [ ] F3 Engagement lifecycle & the two clocks (daily cron)
+- [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund
+- [ ] F3 Engagement lifecycle & the two clocks (daily cron) ← **up next**
 - [ ] F4 Check-ins & structured feedback + Reliability Score
 - [ ] F6 Credits ledger with escrow + founding phase
 - [ ] F5 AI Submission Dossier
