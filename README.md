@@ -63,7 +63,7 @@ Phases 2–3 (automated launch trains, reputation tiers, analytics, deep-link ve
 1. Clone and install:
 
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/Ranb972/launchtrain.git
    cd launchtrain
    npm install
    ```
