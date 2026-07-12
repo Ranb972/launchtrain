@@ -1,7 +1,7 @@
 # LaunchTrain — Product Spec (SPEC.md)
-**Version:** 1.4 | **Date:** 2026-07-11 | **UI language:** English only | **Target market:** Global (US/EU first)
+**Version:** 1.5 | **Date:** 2026-07-12 | **UI language:** English only | **Target market:** Global (US/EU first)
 **Status:** Source of truth for implementation. The Hebrew companion document is for the product owner; if they ever diverge, THIS file governs the code.
-**Changelog:** 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
+**Changelog:** 1.5 (2026-07-12) — F2 post-publish edit rules: identity/eligibility fields frozen after publish, slots grow-only with escrow-backed atomic growth. | 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
 
 > **Product thesis:** Everyone else sells testers. LaunchTrain sells the approval.
 > The single success metric is the % of developers who obtain Google Play Production Access.
@@ -142,6 +142,7 @@
 - **Description:** Public board of `recruiting`/`at_risk` requests + request pages + request creation/management.
 - **User-facing behavior:** `/board` — cards: icon, name, category, slots filled/needed, min Android, credits per test, "Founding" badge. Filters: category, min Android version, "compatible with my devices". Sort: `at_risk` first (priority refill), then reciprocity boost, then `published_at`. Public request page (read-only for guests — SEO; Join requires login). Manage page for the owner: engagement list with statuses, Confirm buttons, streak clock, buffer indicator.
 - **Business logic:** Request statuses: `draft → recruiting → active (streak running) ↔ at_risk → completed / cancelled / expired`. `recruiting` with zero confirms for 30 days → `expired` + full escrow refund. Cancel by owner: unfilled slots → refund; active engagements → immediate escrow release to those testers (fairness rule).
+- **Post-publish edit rules (v1.5, approved):** after publish, `package_name`, `opt_in_url`, `group_url`, `join_method`, `app_name`, `category`, and `min_android_version` are FROZEN — fixing one means cancel and republish. `description`, `instructions`, and screenshots/icon stay editable. `slots_needed` may only increase (max 20), never decrease; on non-founding requests an increase creates matching `spend_post`/`escrow_hold` rows in the same DB transaction, so every slot stays escrow-backed (preserves the F6 mint = burn invariant). Founding requests grow free, consistent with their free publish. Enforced in the server actions and backstopped by a DB trigger.
 - **Edge cases:** Public pages never expose testers' testing emails. Two users hit Join on the last slot → atomic transaction; the loser gets "This test just filled up".
 - **Priority:** MVP
 

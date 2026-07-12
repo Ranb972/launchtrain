@@ -390,6 +390,13 @@ export type Database = {
         };
         Relationships: [];
       };
+      request_slot_counts: {
+        Row: {
+          request_id: string;
+          confirmed_count: number;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       is_admin: {
@@ -403,6 +410,18 @@ export type Database = {
       is_engagement_party: {
         Args: { eng: string };
         Returns: boolean;
+      };
+      publish_request: {
+        Args: { req: string; expect_free: boolean };
+        Returns: Json;
+      };
+      cancel_request: {
+        Args: { req: string };
+        Returns: Json;
+      };
+      grow_request_slots: {
+        Args: { req: string; new_slots: number };
+        Returns: Json;
       };
     };
     Enums: {
