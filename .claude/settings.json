@@ -1,13 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Read", "Edit", "Write",
-      "Bash(npm *)", "Bash(npx *)", "Bash(git *)"
+      "Read", "Edit", "Write", "Glob", "Grep", "WebFetch",
+      "Bash(npm *)", "Bash(npx *)",
+      "Bash(git status*)", "Bash(git log*)", "Bash(git diff*)", "Bash(git show*)",
+      "Bash(git add *)", "Bash(git commit *)", "Bash(git branch*)", "Bash(git checkout *)",
+      "Bash(node --version)", "Bash(dir *)", "Bash(ls *)", "Bash(cat *)",
+      "Bash(rg *)", "Bash(grep *)", "Bash(head *)", "Bash(tail *)", "Bash(find *)",
+      "Bash(mkdir *)", "Bash(echo *)", "Bash(where.exe *)"
     ],
     "deny": [
       "Read(./.env.local)",
       "Read(./.env*)",
-      "Bash(rm -rf *)"
+      "Write(./.env.local)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)"
     ]
   }
 }
