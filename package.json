@@ -7,7 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/clocks.test.ts tests/transitions.test.ts"
+    "test": "tsx --test tests/clocks.test.ts tests/transitions.test.ts",
+    "seed:testers": "tsx --env-file=.env.local scripts/seed-testers.ts",
+    "seed:request": "tsx --env-file=.env.local scripts/seed-request.ts",
+    "seed:join": "tsx --env-file=.env.local scripts/seed-join.ts",
+    "seed:confirm": "tsx --env-file=.env.local scripts/seed-confirm.ts",
+    "seed:drop": "tsx --env-file=.env.local scripts/seed-drop.ts",
+    "timetravel": "tsx --env-file=.env.local scripts/timetravel.ts",
+    "inspect": "tsx --env-file=.env.local scripts/inspect.ts",
+    "cron:daily": "tsx --env-file=.env.local scripts/trigger-cron.ts daily",
+    "cron:reminders": "tsx --env-file=.env.local scripts/trigger-cron.ts reminders"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.84",
