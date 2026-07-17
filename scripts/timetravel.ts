@@ -2,11 +2,13 @@
 // Shifts all clock-relevant timestamps of a request and its engagements BACK
 // n days, so a 14-day streak is simulatable in minutes: timetravel 1 day +
 // cron:daily = one streak day. Guarded by ALLOW_SEED=true.
+import { pathToFileURL } from "node:url";
 import {
   adminClient,
   fail,
   requireArg,
   requireSeedMode,
+  type Admin,
 } from "./harness";
 
 const USAGE = "npm run timetravel -- --request <id> --days <n>";
@@ -22,16 +24,12 @@ function shiftDate(date: string | null, days: number): string | null {
     : null;
 }
 
-async function main() {
-  requireSeedMode();
-  const admin = adminClient();
-
-  const requestId = requireArg("--request", USAGE);
-  const days = Number(requireArg("--days", USAGE));
-  if (!Number.isInteger(days) || days < 1) {
-    fail(`--days must be a positive integer. ${USAGE}`);
-  }
-
+// Importable by the walkthrough. Returns the number of engagements shifted.
+export async function timetravelRequest(
+  admin: Admin,
+  requestId: string,
+  days: number,
+): Promise<number> {
   const { data: request } = await admin
     .from("test_requests")
     .select("*")
@@ -75,9 +73,25 @@ async function main() {
   }
 
   console.log(
-    `✓ "${request.app_name}": request clocks and ${shifted} engagement(s) moved ${days} day(s) into the past.\n` +
-      `  Now run \`npm run cron:daily\` to let the streak math catch up.`,
+    `✓ "${request.app_name}": request clocks and ${shifted} engagement(s) moved ${days} day(s) into the past.`,
   );
+  return shifted;
 }
 
-main();
+async function main() {
+  requireSeedMode();
+  const admin = adminClient();
+
+  const requestId = requireArg("--request", USAGE);
+  const days = Number(requireArg("--days", USAGE));
+  if (!Number.isInteger(days) || days < 1) {
+    fail(`--days must be a positive integer. ${USAGE}`);
+  }
+
+  await timetravelRequest(admin, requestId, days);
+  console.log("  Now run `npm run cron:daily` to let the streak math catch up.");
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

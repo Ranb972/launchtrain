@@ -2,6 +2,7 @@
 // valid Android devices, plus one low-score tester (55 + active cooldown)
 // for the reliability-block demo. Idempotent: existing seed users are
 // skipped. Guarded by ALLOW_SEED=true.
+import { pathToFileURL } from "node:url";
 import {
   adminClient,
   fail,
@@ -9,6 +10,7 @@ import {
   SEED_LOWSCORE_EMAIL,
   SEED_TESTER_COUNT,
   seedEmail,
+  type Admin,
 } from "./harness";
 
 // Manufacturer variety from the curated list (SPEC §6), Android 12–15 so
@@ -32,7 +34,7 @@ const DEVICES: Array<[string, string, number]> = [
 ];
 
 async function createSeedUser(
-  admin: ReturnType<typeof adminClient>,
+  admin: Admin,
   email: string,
   displayName: string,
   device: [string, string, number],
@@ -74,10 +76,10 @@ async function createSeedUser(
   return "created";
 }
 
-async function main() {
-  requireSeedMode();
-  const admin = adminClient();
-
+// Importable by the walkthrough; idempotent.
+export async function seedTesters(
+  admin: Admin,
+): Promise<{ created: number; skipped: number }> {
   let created = 0;
   let skipped = 0;
 
@@ -120,10 +122,19 @@ async function main() {
     console.log(`· exists  ${SEED_LOWSCORE_EMAIL}`);
   }
 
+  return { created, skipped };
+}
+
+async function main() {
+  requireSeedMode();
+  const admin = adminClient();
+  const { created, skipped } = await seedTesters(admin);
   console.log(
     `\nDone: ${created} created, ${skipped} already existed. ` +
       `Seeded testers sign in nowhere — drive them with seed:join / seed:confirm / seed:drop.`,
   );
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

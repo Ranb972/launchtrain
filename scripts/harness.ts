@@ -62,6 +62,12 @@ export function jsonString(data: Json, key: string): string | null {
   return typeof v === "string" ? v : null;
 }
 
+export function jsonNumber(data: Json, key: string): number | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const v = (data as Record<string, Json | undefined>)[key];
+  return typeof v === "number" ? v : null;
+}
+
 // Seeded testers (service-role read; bypasses RLS), ordered by email so
 // tester01..tester15 join in a stable order. Excludes the low-score tester
 // unless explicitly included.

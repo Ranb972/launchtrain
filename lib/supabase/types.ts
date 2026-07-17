@@ -490,6 +490,10 @@ export type Database = {
         Args: { req: string };
         Returns: Json;
       };
+      seed_request_replacement: {
+        Args: { eng: string };
+        Returns: Json;
+      };
     };
     Enums: {
       user_role: "user" | "admin";

@@ -16,7 +16,8 @@
     "timetravel": "tsx --env-file=.env.local scripts/timetravel.ts",
     "inspect": "tsx --env-file=.env.local scripts/inspect.ts",
     "cron:daily": "tsx --env-file=.env.local scripts/trigger-cron.ts daily",
-    "cron:reminders": "tsx --env-file=.env.local scripts/trigger-cron.ts reminders"
+    "cron:reminders": "tsx --env-file=.env.local scripts/trigger-cron.ts reminders",
+    "walkthrough": "tsx --env-file=.env.local scripts/walkthrough.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.84",
