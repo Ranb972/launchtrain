@@ -48,7 +48,7 @@ LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (c
 - [x] Device data integrity — curated manufacturer list, Android 8–30 bounds enforced form → server action → DB CHECK
 - [x] AI provider layer (env-swappable, SPEC §5.1)
 - [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund (manually verified end-to-end: creation, founding publish, freeze rules, grow-only slots, public board, guest view, cancel + refund)
-- [ ] F3 Engagement lifecycle & the two clocks (daily cron) ← **up next**
+- [ ] F3 Engagement lifecycle & the two clocks (daily cron) ← **implemented (join/confirm/drop/replacement, two-clock cron, notifications, seed+timetravel harness); awaiting manual verification**
 - [ ] F4 Check-ins & structured feedback + Reliability Score
 - [ ] F6 Credits ledger with escrow + founding phase
 - [ ] F5 AI Submission Dossier
@@ -75,11 +75,12 @@ Phases 2–3 (automated launch trains, reputation tiers, analytics, deep-link ve
    | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key |
    | `NEXT_PUBLIC_APP_URL` | ✅ | `http://localhost:3456` locally |
+   | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | server-only; cron routes, notification emails, dev harness |
+   | `CRON_SECRET` | ✅ | guards `/api/cron/*` (any random string) |
+   | `ALLOW_SEED` | dev only | `true` unlocks the seed/timetravel harness — never set in production |
+   | `RESEND_API_KEY`, `EMAIL_FROM` | optional | notification emails; without a key sends are logged no-ops |
    | `AI_PROVIDER`, `AI_MODEL` | optional | dossier model selection; defaults `google` / `gemini-2.5-flash` |
    | `GOOGLE_GENERATIVE_AI_API_KEY` | reserved | read by the AI SDK once dossier generation (F5) lands |
-   | `SUPABASE_SERVICE_ROLE_KEY` | reserved | server-only; engagement/credit transitions in upcoming phases |
-   | `RESEND_API_KEY`, `EMAIL_FROM` | reserved | email notifications |
-   | `CRON_SECRET` | reserved | guards `/api/cron/*` |
    | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | reserved | AI provider swap targets |
 
 3. Apply the database migrations: open the Supabase **SQL Editor**, then paste and run each file's contents **in this order**:
@@ -87,6 +88,9 @@ Phases 2–3 (automated launch trains, reputation tiers, analytics, deep-link ve
    1. `supabase/migrations/20260612120000_initial_schema.sql`
    2. `supabase/migrations/20260612130000_f1_db_guards.sql`
    3. `supabase/migrations/20260711120000_device_constraints.sql`
+   4. `supabase/migrations/20260712120000_storage_screenshots.sql`
+   5. `supabase/migrations/20260712130000_f2_publish_cancel.sql`
+   6. `supabase/migrations/20260717120000_f3_engagement_lifecycle.sql`
 
 4. Start the dev server:
 
@@ -95,6 +99,22 @@ Phases 2–3 (automated launch trains, reputation tiers, analytics, deep-link ve
    ```
 
    The app runs at [http://localhost:3456](http://localhost:3456).
+
+## Dev test harness
+
+The engagement lifecycle can't be verified by clicking alone (it needs 12+ testers and multi-day clocks), so the repo ships a seeding/time-travel harness. It requires `ALLOW_SEED=true` in `.env.local` (never set it in production) and talks to Supabase with the service role; the `seed:*` mutations run the **same Postgres code paths** as the real UI actions, via service-role-only wrapper functions.
+
+| Script | What it does |
+|---|---|
+| `npm run seed:testers` | Creates ~15 fake onboarded testers (`tester01@seed.launchtrain.local`…) with Android devices, plus one low-reliability tester for the cooldown demo. Idempotent. |
+| `npm run seed:request` | Creates/reuses one recruiting request owned by a seeded user — join it with your real account to live the tester side. |
+| `npm run seed:join -- --request <id> --count <n> [--opted-in] [--tester <email>]` | Joins n seeded testers through the real join path (eligibility, capacity race, notifications). |
+| `npm run seed:confirm -- --request <id> [--count <n>] [--tester <email>]` | The request owner confirms pending testers (crossing 12 starts the Google clock). |
+| `npm run seed:drop -- --request <id> [--count <n>] [--pending]` | A seeded tester drops (−15, streak break if below 12) or withdraws a pending join (`--pending`). Never touches real accounts. |
+| `npm run timetravel -- --request <id> --days <n>` | Shifts every clock-relevant timestamp back n days — a 14-day streak in minutes. |
+| `npm run cron:daily` / `npm run cron:reminders` | Trigger the local cron routes with `CRON_SECRET` (dev server must be running). |
+| `npm run inspect -- --request <id>` | Read-only snapshot: status, streak fields, slot counts, engagement breakdown. |
+| `npm test` | Unit tests for the pure two-clock math and transition guards. |
 
 ## Screenshots
 

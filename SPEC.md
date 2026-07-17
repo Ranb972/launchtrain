@@ -1,7 +1,7 @@
 # LaunchTrain — Product Spec (SPEC.md)
-**Version:** 1.5 | **Date:** 2026-07-12 | **UI language:** English only | **Target market:** Global (US/EU first)
+**Version:** 1.6 | **Date:** 2026-07-17 | **UI language:** English only | **Target market:** Global (US/EU first)
 **Status:** Source of truth for implementation. The Hebrew companion document is for the product owner; if they ever diverge, THIS file governs the code.
-**Changelog:** 1.5 (2026-07-12) — F2 post-publish edit rules: identity/eligibility fields frozen after publish, slots grow-only with escrow-backed atomic growth. | 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
+**Changelog:** 1.6 (2026-07-17) — F3 engagement lifecycle & two clocks: approved implementation rules recorded in F3 (completed engagements keep counting toward the simultaneous 12; slot occupancy vs streak count split; `streak_ok_since`/`streak_last_counted_day` bookkeeping with event-driven breaks and an idempotent daily cron; pending testers cancel penalty-free at any time; `join_blocked_until` cooldown; −5 at_risk penalty deferred to F4; 30-day expiry in cron + `request_expired` notification; replacement once per at-risk engagement; service-role seed wrappers for the dev harness). | 1.5 (2026-07-12) — F2 post-publish edit rules: identity/eligibility fields frozen after publish, slots grow-only with escrow-backed atomic growth. | 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
 
 > **Product thesis:** Everyone else sells testers. LaunchTrain sells the approval.
 > The single success metric is the % of developers who obtain Google Play Production Access.
@@ -84,7 +84,7 @@
 4. Tester opts in + installs → clicks "I've opted in & installed".
 5. Developer verifies in Play Console (email_list: sees the email in the list; google_group: sees the opted-in counter rise) → clicks Confirm on the manage page → engagement becomes `confirmed`, the tester's personal 14-day clock starts, and 1 credit is earmarked for them in escrow.
 **Success state:** Engagement `confirmed` with `confirmed_at`.
-**Error states:** Developer doesn't confirm within 48h → automatic reminder to developer. Within 72h → tester may cancel with no Reliability penalty; slot reopens. Slots filled between viewing and clicking → "This test just filled up". Incompatible device → Join button locked with explanation.
+**Error states:** Developer doesn't confirm within 48h → automatic reminder to developer. An unconfirmed (`pending_developer`) tester may cancel penalty-free at ANY time — a pending tester never counted toward the streak, so the −15 drop penalty doesn't apply; the 72h mark only escalates the UI emphasis ("developer unresponsive") (clarified v1.6). Slot reopens on cancel. Slots filled between viewing and clicking → "This test just filled up". Incompatible device → Join button locked with explanation.
 
 ### Flow 4: The 14-Day Track (Tester) — the Two-Clock Mechanism
 **Trigger:** Engagement becomes `confirmed`.
@@ -150,6 +150,17 @@
 - **Description:** The engagement state machine and the two clocks (engagement clock + request streak) — the heart of the system.
 - **User-facing behavior:** "My Tests" for the tester (Day X/14, check-in, status); manage page for the developer (live buffer: "13 of 14 slots confirmed — streak day 6").
 - **Business logic:** Engagement states: `pending_developer → confirmed → at_risk ↔ confirmed → completed | dropped | cancelled`. Daily cron (00:15 UTC): for each request — if `confirmed_count ≥ 12` held throughout the previous UTC day → `streak_days++`; else `streak_days = 0` + transition to `at_risk` + notifications. For each engagement — compute days since `confirmed_at`; mark `at_risk` if no check-in for 5 days; send day-3 reminders.
+- **Implementation rules (v1.6, approved):**
+  1. **`confirmed_count`** (the "12 simultaneous" number) counts `confirmed` + `at_risk` + **`completed`** engagements. Completed testers keep counting: confirmations are staggered, so early confirmers finish their personal 14 days before the request streak reaches 14 — removing them would make request completion mathematically impossible. *Forward note (F4/F5):* the platform cannot verify that completed testers remain opted in on Google's side, so tester-facing copy must actively encourage completed testers to stay opted in until the request finishes its streak.
+  2. **Slot occupancy** (join capacity) counts every non-terminal engagement **plus `completed`** (its escrowed credit was consumed — the slot cannot be resold). Only `dropped`/`cancelled` reopen slots. `request_slot_counts` exposes both `confirmed_count` and `occupied_count`.
+  3. **Streak bookkeeping:** `test_requests.streak_ok_since` marks when the count last rose to ≥ 12 (NULLed the moment it dips). The daily cron credits one streak day per **complete** UTC day after `streak_ok_since`'s date (the crossing day itself never counts), using `streak_last_counted_day` for idempotency and missed-day catch-up. A dip below 12 resets the streak **immediately** inside `drop_engagement` (status `at_risk`, urgent notification); the cron is the advance + self-heal backstop.
+  4. **Reaching 12 is event-driven:** the confirm that crosses 12 sets `clock_started_at` (first time only), flips `recruiting`/`at_risk` → `active`, and notifies the owner.
+  5. **Cooldown:** `users.join_blocked_until`, set to now()+14d whenever a reliability penalty leaves the score < 60 (GREATEST-extended on repeat). Joining requires score ≥ 60 AND cooldown expired.
+  6. **No −5 at_risk penalty in F3** — check-ins don't exist yet, so 5-day inactivity (activity falls back to `confirmed_at`) is unavoidable; the transition + notifications land penalty-free, the −5 arrives with F4's check-ins.
+  7. **Joinable statuses:** `recruiting` / `active` / `at_risk` with open slots. Requests stay `active` past streak 14 — the `completed` transition arrives with F5.
+  8. **Replacement** (`request_replacement`) is once per at-risk engagement (`replacement_requested_at`), growing slots by 1 via `grow_request_slots` semantics (founding free, else 1 escrowed credit).
+  9. **30-day zero-confirm expiry** runs in the daily cron with full escrow refund and a `request_expired` notification (approved addition to the Flow 7 list). In-app notification type ids: `tester_joined`, `confirm_reminder_48h`, `engagement_confirmed`, `request_reached_12`, `streak_broken`, `engagement_at_risk`, `tester_dropped`, `request_expired`.
+  10. **State transitions live in SECURITY DEFINER Postgres functions** (F2 pattern; credits move in the same DB transaction). Service-role-only `seed_*` wrappers invoke the same `_impl` code paths for the dev harness (the project is Google-OAuth-only, so seeded testers cannot sign in) — never granted to end users. Cron routes accept GET and POST (Vercel Cron sends GET) behind `CRON_SECRET`.
 - **Edge cases:** All day math in UTC. A tester who joined, dropped, and rejoins → a new engagement; their clock restarts. Developer confirms after the tester already cancelled → fails gracefully.
 - **Priority:** MVP
 
@@ -247,6 +258,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | role | enum(user,admin) | yes | default user |
 | reliability_score | int | yes | default 100, range 0–100 |
 | is_founding_member | bool | yes | default false |
+| join_blocked_until | timestamptz | no | v1.6: 14-day join cooldown, set when a penalty leaves score < 60; server-managed |
 | onboarded_at | timestamptz | no | null = onboarding incomplete |
 | created_at | timestamptz | yes | |
 
@@ -280,6 +292,8 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | status | enum | yes | draft, recruiting, active, at_risk, completed, cancelled, expired |
 | streak_days | int | yes | default 0 |
 | clock_started_at | timestamptz | no | first time ≥12 was reached |
+| streak_ok_since | timestamptz | no | v1.6: when the count last rose to ≥12; NULL while below (F3 rule 3) |
+| streak_last_counted_day | date | no | v1.6: last UTC day credited by the cron (idempotency/catch-up) |
 | is_founding | bool | yes | default false |
 | icon_url / screenshots | text / jsonb | no | Storage paths |
 | created_at / published_at | timestamptz | yes/no | |
@@ -301,6 +315,9 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | completed_at | timestamptz | no | |
 | last_checkin_at | timestamptz | no | |
 | checkin_count | int | yes | default 0 |
+| ended_at | timestamptz | no | v1.6: set on entering dropped/cancelled |
+| replacement_requested_at | timestamptz | no | v1.6: once-per-engagement replacement marker (F3 rule 8) |
+| confirm_reminded_at | timestamptz | no | v1.6: 48h reminder sent marker |
 
 > **Unique constraint:** (request_id, tester_id) among non-terminal rows — one tester per request. A re-join after drop = a new row, allowed only if the previous row is dropped/cancelled.
 
@@ -390,6 +407,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | /credits | Balance + Transactions + How credits work | Yes |
 | /admin | Config, entity search, admin_adjust, suspensions | Yes (admin) |
 | /onboarding | Profile completion form | Yes |
+| /notifications | Notification list + mark read (bell target) — v1.6 | Yes |
 
 ### Server Actions / API
 | Method | Route / Action | Description | Auth |
