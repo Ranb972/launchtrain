@@ -429,9 +429,13 @@ async function main() {
   check("all 12 live engagements now at_risk", 12, engCounts.get("at_risk") ?? 0);
   check("at_risk testers still count toward the 12", 12, slots.confirmed);
   check("request stays active (streak intact)", "active", req.status);
+  // Cumulative across the run: the Stage 6 shifts already crossed the 5-day
+  // line for the 12 first-generation engagements (12 owner notifications);
+  // one of those was then dropped in Stage 7 and its REFILL engagement flips
+  // here (+1). Notifications for dropped engagements don't un-count → 13.
   check(
-    "engagement_at_risk notifications to owner",
-    12,
+    "engagement_at_risk notifications to owner (12 first-gen + 1 refill)",
+    13,
     await notifCount(admin, owner.id, "engagement_at_risk", reqId),
   );
   await pause([
