@@ -6,12 +6,13 @@ import type { Tables } from "@/lib/supabase/types";
 
 // Board card (SPEC F2): icon, name, category, slots filled/needed,
 // min Android, credits per test, Founding badge.
+// "Filled" = occupied slots (incl. pending/completed — F3 decision A2).
 export function RequestCard({
   request,
-  confirmedCount,
+  occupiedCount,
 }: {
   request: Tables<"test_requests">;
-  confirmedCount: number;
+  occupiedCount: number;
 }) {
   return (
     <Link
@@ -45,7 +46,7 @@ export function RequestCard({
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
           <span>
             <span className="font-medium text-zinc-200">
-              {confirmedCount}/{request.slots_needed}
+              {occupiedCount}/{request.slots_needed}
             </span>{" "}
             slots
           </span>

@@ -78,13 +78,13 @@ export default async function BoardPage({
   if (sorted.length > 0) {
     const { data: slotRows } = await supabase
       .from("request_slot_counts")
-      .select("request_id, confirmed_count")
+      .select("request_id, occupied_count")
       .in(
         "request_id",
         sorted.map((r) => r.id),
       );
     for (const row of slotRows ?? []) {
-      counts.set(row.request_id, row.confirmed_count);
+      counts.set(row.request_id, row.occupied_count);
     }
   }
 
@@ -190,7 +190,7 @@ export default async function BoardPage({
             <RequestCard
               key={request.id}
               request={request}
-              confirmedCount={counts.get(request.id) ?? 0}
+              occupiedCount={counts.get(request.id) ?? 0}
             />
           ))
         )}
