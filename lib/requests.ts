@@ -57,8 +57,9 @@ export function extractPackageName(optInUrl: string): string | null {
   return pkg && PACKAGE_RE.test(pkg) ? pkg : null;
 }
 
-// Maps the LT_* error protocol raised by the F2 database functions
-// (supabase/migrations/20260712130000_f2_publish_cancel.sql) to UI copy.
+// Maps the LT_* error protocol raised by the F2/F3 database functions
+// (supabase/migrations/20260712130000_f2_publish_cancel.sql and
+// 20260717120000_f3_engagement_lifecycle.sql) to UI copy.
 // Returns null for unrecognized errors so callers can fall back generically.
 export function mapRequestFunctionError(message: string): string | null {
   if (message.includes("LT_INSUFFICIENT_CREDITS")) {
@@ -66,6 +67,57 @@ export function mapRequestFunctionError(message: string): string | null {
     return shortfall
       ? `You need ${shortfall} more credit${shortfall === "1" ? "" : "s"}.`
       : "You don't have enough credits.";
+  }
+  if (message.includes("LT_RELIABILITY_LOW")) {
+    const score = message.match(/LT_RELIABILITY_LOW:(\d+)/)?.[1];
+    return score
+      ? `Your reliability score (${score}) is below 60 — complete your active tests to raise it.`
+      : "Your reliability score is below 60 — complete your active tests to raise it.";
+  }
+  if (message.includes("LT_COOLDOWN_ACTIVE")) {
+    const until = message.match(/LT_COOLDOWN_ACTIVE:(\d{4}-\d{2}-\d{2})/)?.[1];
+    return until
+      ? `You're in a join cooldown after a recent drop — you can join again on ${until} (UTC).`
+      : "You're in a join cooldown after a recent drop.";
+  }
+  if (message.includes("LT_NOT_JOINABLE")) {
+    return "This test isn't accepting testers right now.";
+  }
+  if (message.includes("LT_OWN_REQUEST")) {
+    return "You can't join your own test.";
+  }
+  if (message.includes("LT_ONBOARDING_REQUIRED")) {
+    return "Complete onboarding before joining a test.";
+  }
+  if (message.includes("LT_DEVICE_NOT_FOUND")) {
+    return "Pick one of your registered devices.";
+  }
+  if (message.includes("LT_DEVICE_INCOMPATIBLE")) {
+    return "That device doesn't meet this test's minimum Android version.";
+  }
+  if (message.includes("LT_ALREADY_JOINED")) {
+    return "You've already joined this test.";
+  }
+  if (message.includes("LT_TEST_FULL")) {
+    return "This test just filled up.";
+  }
+  if (message.includes("LT_TESTER_CANCELLED")) {
+    return "This tester withdrew before you confirmed — the slot is open again.";
+  }
+  if (message.includes("LT_ALREADY_CONFIRMED")) {
+    return "This tester is already confirmed.";
+  }
+  if (message.includes("LT_NOT_PENDING")) {
+    return "This engagement can no longer be confirmed.";
+  }
+  if (message.includes("LT_ENGAGEMENT_CLOSED")) {
+    return "This engagement is already closed.";
+  }
+  if (message.includes("LT_NOT_AT_RISK")) {
+    return "Replacements can only be requested for at-risk testers.";
+  }
+  if (message.includes("LT_REPLACEMENT_ALREADY")) {
+    return "You already requested a replacement for this tester.";
   }
   if (message.includes("LT_FOUNDING_CAP_REACHED")) {
     return "The founding cap was just reached — normal pricing now applies. Review the cost below and publish again.";

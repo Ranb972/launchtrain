@@ -24,6 +24,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"];
           reliability_score: number;
           is_founding_member: boolean;
+          join_blocked_until: string | null;
           onboarded_at: string | null;
           created_at: string;
         };
@@ -37,6 +38,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"];
           reliability_score?: number;
           is_founding_member?: boolean;
+          join_blocked_until?: string | null;
           onboarded_at?: string | null;
           created_at?: string;
         };
@@ -50,6 +52,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"];
           reliability_score?: number;
           is_founding_member?: boolean;
+          join_blocked_until?: string | null;
           onboarded_at?: string | null;
           created_at?: string;
         };
@@ -99,6 +102,8 @@ export type Database = {
           status: Database["public"]["Enums"]["request_status"];
           streak_days: number;
           clock_started_at: string | null;
+          streak_ok_since: string | null;
+          streak_last_counted_day: string | null;
           is_founding: boolean;
           icon_url: string | null;
           screenshots: Json | null;
@@ -121,6 +126,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["request_status"];
           streak_days?: number;
           clock_started_at?: string | null;
+          streak_ok_since?: string | null;
+          streak_last_counted_day?: string | null;
           is_founding?: boolean;
           icon_url?: string | null;
           screenshots?: Json | null;
@@ -143,6 +150,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["request_status"];
           streak_days?: number;
           clock_started_at?: string | null;
+          streak_ok_since?: string | null;
+          streak_last_counted_day?: string | null;
           is_founding?: boolean;
           icon_url?: string | null;
           screenshots?: Json | null;
@@ -164,6 +173,9 @@ export type Database = {
           completed_at: string | null;
           last_checkin_at: string | null;
           checkin_count: number;
+          ended_at: string | null;
+          replacement_requested_at: string | null;
+          confirm_reminded_at: string | null;
         };
         Insert: {
           id?: string;
@@ -177,6 +189,9 @@ export type Database = {
           completed_at?: string | null;
           last_checkin_at?: string | null;
           checkin_count?: number;
+          ended_at?: string | null;
+          replacement_requested_at?: string | null;
+          confirm_reminded_at?: string | null;
         };
         Update: {
           id?: string;
@@ -190,6 +205,9 @@ export type Database = {
           completed_at?: string | null;
           last_checkin_at?: string | null;
           checkin_count?: number;
+          ended_at?: string | null;
+          replacement_requested_at?: string | null;
+          confirm_reminded_at?: string | null;
         };
         Relationships: [];
       };
@@ -394,6 +412,7 @@ export type Database = {
         Row: {
           request_id: string;
           confirmed_count: number;
+          occupied_count: number;
         };
         Relationships: [];
       };
@@ -421,6 +440,54 @@ export type Database = {
       };
       grow_request_slots: {
         Args: { req: string; new_slots: number };
+        Returns: Json;
+      };
+      join_test: {
+        Args: { req: string; device: string };
+        Returns: Json;
+      };
+      mark_opted_in: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      confirm_engagement: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      drop_engagement: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      request_replacement: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      run_daily_clocks: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      run_confirm_reminders: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      seed_join_test: {
+        Args: { tester: string; req: string; device: string };
+        Returns: Json;
+      };
+      seed_mark_opted_in: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      seed_confirm_engagement: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      seed_drop_engagement: {
+        Args: { eng: string };
+        Returns: Json;
+      };
+      seed_publish_request: {
+        Args: { req: string };
         Returns: Json;
       };
     };
