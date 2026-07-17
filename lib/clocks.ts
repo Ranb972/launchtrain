@@ -198,3 +198,13 @@ export function pendingCancelEmphasized(joinedAt: string, now: string | Date): b
     Date.parse(joinedAt) < nowMs - PENDING_CANCEL_EMPHASIS_HOURS * 3_600_000
   );
 }
+
+// Compact relative-time label for lists ("just now", "3h ago", "2d ago").
+export function timeAgoLabel(iso: string, now: string | Date): string {
+  const nowMs = typeof now === "string" ? Date.parse(now) : now.getTime();
+  const diffMs = Math.max(0, nowMs - Date.parse(iso));
+  const hours = Math.floor(diffMs / 3_600_000);
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
