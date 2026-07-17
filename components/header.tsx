@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { NotificationBell } from "@/components/notification-bell";
 
 export async function Header() {
   const supabase = await createClient();
@@ -48,6 +49,7 @@ export async function Header() {
             >
               Settings
             </Link>
+            <NotificationBell />
             {profile?.avatar_url ? (
               <Image
                 src={profile.avatar_url}
