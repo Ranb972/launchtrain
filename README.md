@@ -39,7 +39,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 
 ## Project status
 
-LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (currently v1.4), and development proceeds phase by phase against it. Every completed feature is manually verified end-to-end in the browser before the next one starts.
+LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (currently v1.5), and development proceeds phase by phase against it. Every completed feature is manually verified end-to-end in the browser before the next one starts.
 
 **Phase 1 — "The Working Line" (MVP):**
 
@@ -47,7 +47,7 @@ LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (c
 - [x] F1 Auth & Profiles — Google OAuth, onboarding, settings, device management
 - [x] Device data integrity — curated manufacturer list, Android 8–30 bounds enforced form → server action → DB CHECK
 - [x] AI provider layer (env-swappable, SPEC §5.1)
-- [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund
+- [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund (manually verified end-to-end: creation, founding publish, freeze rules, grow-only slots, public board, guest view, cancel + refund)
 - [ ] F3 Engagement lifecycle & the two clocks (daily cron) ← **up next**
 - [ ] F4 Check-ins & structured feedback + Reliability Score
 - [ ] F6 Credits ledger with escrow + founding phase
