@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>LaunchTrain F4 — visual QA pass</title>
+<style>
+body{background:#09090b;color:#e4e4e7;font-family:system-ui,sans-serif;margin:2rem auto;max-width:1100px;padding:0 1rem}
+h1{font-size:1.4rem} .shot{margin:2.5rem 0} .cap{font-weight:600;margin:.3rem 0}
+.check{font-size:.85rem;color:#a1a1aa} .pass{color:#34d399} .fail{color:#f87171}
+img{max-width:100%;border:1px solid #27272a;border-radius:12px}
+</style></head><body>
+<h1>LaunchTrain F4 — automated visual pass (2026-07-18)</h1>
+<p>Authenticated as seed tester15 via a service-role-minted session. Items 1 / 4 / 7 / 8 of the F4 manual checklist.</p>
+<div class="shot"><p class="cap">01-mobile-dashboard.png — Mobile /dashboard — stacked sections, live check-in card, bottom nav</p>
+<p class="check pass">PASS: signed in (true) + bottom nav visible (true)</p>
+<img src="01-mobile-dashboard.png" alt="Mobile /dashboard — stacked sections, live check-in card, bottom nav" loading="lazy"></div>
+<div class="shot"><p class="cap">02-mobile-board.png — Mobile /board — cards + bottom nav, header collapsed to logo/bell/avatar</p>
+<p class="check pass">PASS: board heading (found: "The Request Board")</p>
+<img src="02-mobile-board.png" alt="Mobile /board — cards + bottom nav, header collapsed to logo/bell/avatar" loading="lazy"></div>
+<div class="shot"><p class="cap">03-mobile-notifications.png — Mobile /notifications — list + bottom nav</p>
+<p class="check pass">PASS: notifications heading (found: "Notifications")</p>
+<img src="03-mobile-notifications.png" alt="Mobile /notifications — list + bottom nav" loading="lazy"></div>
+<div class="shot"><p class="cap">04-mobile-settings.png — Mobile /settings — Profile tab target, Sign out at the bottom</p>
+<p class="check pass">PASS: sign out button (found: "Sign out")</p>
+<img src="04-mobile-settings.png" alt="Mobile /settings — Profile tab target, Sign out at the bottom" loading="lazy"></div>
+<div class="shot"><p class="cap">05-feedback-gate-day14.png — Final feedback gate — tester15 on day 1 of Visual Gate App</p>
+<p class="check pass">PASS: gate message visible (true)</p>
+<img src="05-feedback-gate-day14.png" alt="Final feedback gate — tester15 on day 1 of Visual Gate App" loading="lazy"></div>
+<div class="shot"><p class="cap">06-hub-before-rating.png — Feedback Hub — 2 finals (completed chips) + 1 mid + issue box, unrated</p>
+<p class="check pass">PASS: hub heading (true) + 2 helpful buttons</p>
+<img src="06-hub-before-rating.png" alt="Feedback Hub — 2 finals (completed chips) + 1 mid + issue box, unrated" loading="lazy"></div>
+<div class="shot"><p class="cap">07-hub-rated-helpful.png — After clicking Helpful — '+1 bonus credit sent' confirmation</p>
+<p class="check pass">PASS: helpful confirmation rendered</p>
+<img src="07-hub-rated-helpful.png" alt="After clicking Helpful — '+1 bonus credit sent' confirmation" loading="lazy"></div>
+<div class="shot"><p class="cap">08-hub-rated-not-helpful.png — Second final rated Not helpful — muted state, no bonus</p>
+<p class="check pass">PASS: not-helpful state rendered</p>
+<img src="08-hub-rated-not-helpful.png" alt="Second final rated Not helpful — muted state, no bonus" loading="lazy"></div>
+<div class="shot"><p class="cap">09-notifications-sweep.png — Notifications sweep — tester_joined ×4, feedback_received ×3 with links</p>
+<p class="check pass">PASS: feedback rows visible (true)</p>
+<img src="09-notifications-sweep.png" alt="Notifications sweep — tester_joined ×4, feedback_received ×3 with links" loading="lazy"></div>
+</body></html>
