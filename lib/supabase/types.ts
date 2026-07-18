@@ -176,6 +176,9 @@ export type Database = {
           ended_at: string | null;
           replacement_requested_at: string | null;
           confirm_reminded_at: string | null;
+          checkin_reminded_at: string | null;
+          feedback_mid_prompted_at: string | null;
+          feedback_final_prompted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -192,6 +195,9 @@ export type Database = {
           ended_at?: string | null;
           replacement_requested_at?: string | null;
           confirm_reminded_at?: string | null;
+          checkin_reminded_at?: string | null;
+          feedback_mid_prompted_at?: string | null;
+          feedback_final_prompted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -208,6 +214,9 @@ export type Database = {
           ended_at?: string | null;
           replacement_requested_at?: string | null;
           confirm_reminded_at?: string | null;
+          checkin_reminded_at?: string | null;
+          feedback_mid_prompted_at?: string | null;
+          feedback_final_prompted_at?: string | null;
         };
         Relationships: [];
       };
@@ -492,6 +501,70 @@ export type Database = {
       };
       seed_request_replacement: {
         Args: { eng: string };
+        Returns: Json;
+      };
+      create_checkin: {
+        Args: {
+          eng: string;
+          cstatus: Database["public"]["Enums"]["checkin_status"];
+          note: string | null;
+        };
+        Returns: Json;
+      };
+      submit_feedback: {
+        Args: {
+          eng: string;
+          ftype: Database["public"]["Enums"]["feedback_type"];
+          stability: number;
+          ux: number;
+          value_score: number;
+          bugs: Json;
+          suggestions: string | null;
+          usage_freq: Database["public"]["Enums"]["usage_frequency"];
+        };
+        Returns: Json;
+      };
+      add_feedback_addendum: {
+        Args: { fb: string; note: string };
+        Returns: Json;
+      };
+      rate_feedback: {
+        Args: {
+          fb: string;
+          rating: Database["public"]["Enums"]["developer_rating"];
+        };
+        Returns: Json;
+      };
+      seed_create_checkin: {
+        Args: {
+          eng: string;
+          cstatus: Database["public"]["Enums"]["checkin_status"];
+          note: string | null;
+        };
+        Returns: Json;
+      };
+      seed_submit_feedback: {
+        Args: {
+          eng: string;
+          ftype: Database["public"]["Enums"]["feedback_type"];
+          stability: number;
+          ux: number;
+          value_score: number;
+          bugs: Json;
+          suggestions: string | null;
+          usage_freq: Database["public"]["Enums"]["usage_frequency"];
+        };
+        Returns: Json;
+      };
+      seed_add_feedback_addendum: {
+        Args: { fb: string; note: string };
+        Returns: Json;
+      };
+      seed_rate_feedback: {
+        Args: {
+          fb: string;
+          rating: Database["public"]["Enums"]["developer_rating"];
+        };
         Returns: Json;
       };
     };

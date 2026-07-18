@@ -119,6 +119,42 @@ export function mapRequestFunctionError(message: string): string | null {
   if (message.includes("LT_REPLACEMENT_ALREADY")) {
     return "You already requested a replacement for this tester.";
   }
+  if (message.includes("LT_NOT_CONFIRMED")) {
+    return "This engagement isn't confirmed yet.";
+  }
+  if (message.includes("LT_ALREADY_CHECKED_IN_TODAY")) {
+    return "You already checked in today — the button unlocks at UTC midnight.";
+  }
+  if (message.includes("LT_NOTE_REQUIRED")) {
+    return "Describe the issue you found — the note is required.";
+  }
+  if (message.includes("LT_INVALID_RATING")) {
+    return "Ratings must be between 1 and 5.";
+  }
+  if (message.includes("LT_INVALID_BUGS")) {
+    return "Each bug needs a short description and a severity (low / medium / high).";
+  }
+  if (message.includes("LT_FEEDBACK_TOO_EARLY")) {
+    const day = message.match(/LT_FEEDBACK_TOO_EARLY:(\d+)/)?.[1];
+    return day
+      ? `This feedback unlocks on day ${day} of your test.`
+      : "This feedback isn't unlocked yet.";
+  }
+  if (message.includes("LT_FEEDBACK_EXISTS")) {
+    return "Feedback already submitted — it's immutable, but you can add one addendum note.";
+  }
+  if (message.includes("LT_ADDENDUM_EXISTS")) {
+    return "You already added an addendum — feedback is immutable.";
+  }
+  if (message.includes("LT_INVALID_ADDENDUM")) {
+    return "The note can't be empty (max length applies).";
+  }
+  if (message.includes("LT_ALREADY_RATED")) {
+    return "You already rated this feedback — ratings are final.";
+  }
+  if (message.includes("LT_NOT_FINAL")) {
+    return "Only final feedback can be rated.";
+  }
   if (message.includes("LT_FOUNDING_CAP_REACHED")) {
     return "The founding cap was just reached — normal pricing now applies. Review the cost below and publish again.";
   }

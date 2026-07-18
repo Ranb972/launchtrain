@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/clocks.test.ts tests/transitions.test.ts",
+    "test": "tsx --test tests/clocks.test.ts tests/transitions.test.ts tests/checkins.test.ts",
     "seed:testers": "tsx --env-file=.env.local scripts/seed-testers.ts",
     "seed:request": "tsx --env-file=.env.local scripts/seed-request.ts",
     "seed:join": "tsx --env-file=.env.local scripts/seed-join.ts",

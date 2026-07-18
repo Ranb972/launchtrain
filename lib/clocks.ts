@@ -13,6 +13,11 @@ export const CONFIRM_REMINDER_HOURS = 48;
 export const PENDING_CANCEL_EMPHASIS_HOURS = 72;
 export const RELIABILITY_JOIN_MIN = 60;
 export const DROP_PENALTY = 15;
+export const AT_RISK_PENALTY = 5;
+export const COMPLETION_REWARD = 2;
+export const MID_FEEDBACK_DAY = 7;
+export const FINAL_FEEDBACK_DAY = 14;
+export const CHECKIN_REMINDER_DAYS = 3;
 
 const DAY_MS = 86_400_000;
 
@@ -197,6 +202,53 @@ export function pendingCancelEmphasized(joinedAt: string, now: string | Date): b
   return (
     Date.parse(joinedAt) < nowMs - PENDING_CANCEL_EMPHASIS_HOURS * 3_600_000
   );
+}
+
+// ------------------------------------------------------------
+// F4: check-in and feedback rules — mirrors of the F4 DB functions.
+// ------------------------------------------------------------
+
+// Once per engagement per UTC day (SPEC F4): the button locks when the last
+// check-in falls on today's UTC date.
+export function hasCheckedInToday(
+  lastCheckinAt: string | null,
+  now: string | Date,
+): boolean {
+  if (!lastCheckinAt) return false;
+  const nowIso = typeof now === "string" ? now : now.toISOString();
+  return utcDateString(lastCheckinAt) === utcDateString(nowIso);
+}
+
+// Display-only cadence meter (approved B3): check-ins within the rolling
+// last-7-UTC-days window, counted against system_config.checkin_min_weekly.
+export function checkinsInLastDays(
+  checkinTimestamps: string[],
+  now: string | Date,
+  days = 7,
+): number {
+  const nowMs = typeof now === "string" ? Date.parse(now) : now.getTime();
+  const cutoff = nowMs - days * DAY_MS;
+  return checkinTimestamps.filter((iso) => {
+    const t = Date.parse(iso);
+    return t > cutoff && t <= nowMs;
+  }).length;
+}
+
+// Feedback unlock gates (approved B6): mid from day 7, final from day 14.
+export function feedbackGate(
+  type: "mid" | "final",
+  engagementDayNumber: number,
+): { allowed: true } | { allowed: false; unlocksOnDay: number } {
+  const unlockDay = type === "mid" ? MID_FEEDBACK_DAY : FINAL_FEEDBACK_DAY;
+  return engagementDayNumber >= unlockDay
+    ? { allowed: true }
+    : { allowed: false, unlocksOnDay: unlockDay };
+}
+
+// Reliability arithmetic (SPEC F4): completed +2 (cap 100), at_risk −5,
+// dropped −15 (floor 0).
+export function applyReliabilityDelta(score: number, delta: number): number {
+  return Math.max(0, Math.min(100, score + delta));
 }
 
 // Compact relative-time label for lists ("just now", "3h ago", "2d ago").
