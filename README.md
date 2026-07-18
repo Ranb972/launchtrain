@@ -48,8 +48,8 @@ LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (c
 - [x] Device data integrity — curated manufacturer list, Android 8–30 bounds enforced form → server action → DB CHECK
 - [x] AI provider layer (env-swappable, SPEC §5.1)
 - [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund (manually verified end-to-end: creation, founding publish, freeze rules, grow-only slots, public board, guest view, cancel + refund)
-- [ ] F3 Engagement lifecycle & the two clocks (daily cron) ← **implemented (join/confirm/drop/replacement, two-clock cron, notifications, seed+timetravel harness); awaiting manual verification**
-- [ ] F4 Check-ins & structured feedback + Reliability Score
+- [x] F3 Engagement lifecycle & the two clocks — join/confirm/drop/replacement, two-clock daily cron, in-app notifications + bell, seed/timetravel harness (verified end-to-end: 51-check scripted walkthrough, `npm run walkthrough`, plus a manual UI pass)
+- [ ] F4 Check-ins & structured feedback + Reliability Score ← **up next** (first task: mobile header — logo/nav collide on narrow viewports, Sign out cut off; implement the SPEC §8 mobile bottom nav: Board / My Tests / My Requests / Profile)
 - [ ] F6 Credits ledger with escrow + founding phase
 - [ ] F5 AI Submission Dossier
 - [ ] Email + in-app notifications
