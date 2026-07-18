@@ -31,7 +31,8 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <Header />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+        {/* Bottom padding clears the fixed mobile bottom nav (SPEC §8). */}
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pb-24 sm:pb-8">
           {children}
         </main>
       </body>

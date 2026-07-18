@@ -102,7 +102,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-12 grid gap-6 sm:grid-cols-2">
-        <section>
+        <section id="my-requests" className="scroll-mt-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
             My Requests
           </h3>
@@ -142,7 +142,7 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <section>
+        <section id="my-tests" className="scroll-mt-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
             My Tests
           </h3>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { signOut } from "@/app/auth/actions";
 import { DeviceManager, ProfileForm } from "@/components/settings-forms";
 
 const ACTIVE_ENGAGEMENT_STATUSES = [
@@ -62,6 +63,19 @@ export default async function SettingsPage() {
         <div className="mt-4">
           <DeviceManager devices={devices ?? []} />
         </div>
+      </section>
+
+      {/* On mobile the header hides its Sign out (SPEC §8 bottom nav layout),
+          so the account exit lives here. */}
+      <section className="mt-12 border-t border-zinc-800 pt-6">
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+          >
+            Sign out
+          </button>
+        </form>
       </section>
     </div>
   );
