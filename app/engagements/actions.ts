@@ -162,6 +162,231 @@ export async function dropEngagement(
 }
 
 // ------------------------------------------------------------
+// createCheckin (SPEC Flow 4 step 2, §7 — tester)
+// ------------------------------------------------------------
+
+export async function createCheckin(
+  _prev: EngagementActionState,
+  formData: FormData,
+): Promise<EngagementActionState> {
+  const { supabase } = await requireOnboardedUser();
+
+  const engagementId = String(formData.get("engagement_id") ?? "");
+  const requestId = String(formData.get("request_id") ?? "");
+  const status = String(formData.get("checkin_status") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (status !== "ok" && status !== "issue") {
+    return { error: "Pick how the app behaved today." };
+  }
+  if (status === "issue" && !note) {
+    return { error: "Describe the issue you found — the note is required." };
+  }
+
+  const { data, error } = await supabase.rpc("create_checkin", {
+    eng: engagementId,
+    cstatus: status,
+    note: note || null,
+  });
+
+  if (error) {
+    return {
+      error:
+        mapRequestFunctionError(error.message) ??
+        "Could not save the check-in. Please try again.",
+    };
+  }
+
+  revalidateRequestPages(requestId);
+  const recovered = jsonField(data, "recovered") === true;
+  return {
+    success: recovered
+      ? "Checked in — welcome back! Your engagement is no longer at risk."
+      : "Checked in for today. Next check-in unlocks at UTC midnight.",
+  };
+}
+
+// ------------------------------------------------------------
+// submitFeedback (SPEC Flow 4 steps 3–4, Flow 5 step 1, §7 — tester)
+// ------------------------------------------------------------
+
+export type BugEntry = { text: string; severity: "low" | "medium" | "high" };
+
+function parseBugs(raw: string): BugEntry[] | null {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length > 20) return null;
+    const bugs: BugEntry[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") return null;
+      const text = String((item as Record<string, unknown>).text ?? "").trim();
+      const severity = (item as Record<string, unknown>).severity;
+      if (!text || text.length > 500) return null;
+      if (severity !== "low" && severity !== "medium" && severity !== "high") {
+        return null;
+      }
+      bugs.push({ text, severity });
+    }
+    return bugs;
+  } catch {
+    return null;
+  }
+}
+
+export async function submitFeedback(
+  _prev: EngagementActionState,
+  formData: FormData,
+): Promise<EngagementActionState> {
+  const { supabase } = await requireOnboardedUser();
+
+  const engagementId = String(formData.get("engagement_id") ?? "");
+  const requestId = String(formData.get("request_id") ?? "");
+  const ftype = String(formData.get("feedback_type") ?? "");
+  const stability = Number(formData.get("stability"));
+  const ux = Number(formData.get("ux"));
+  const value = Number(formData.get("value"));
+  const usage = String(formData.get("usage_frequency") ?? "");
+  const suggestions = String(formData.get("suggestions") ?? "").trim();
+  const bugs = parseBugs(String(formData.get("bugs") ?? ""));
+
+  if (ftype !== "mid" && ftype !== "final") {
+    return { error: "Unknown feedback type." };
+  }
+  for (const [label, v] of [
+    ["Stability", stability],
+    ["UX", ux],
+    ["Value", value],
+  ] as const) {
+    if (!Number.isInteger(v) || v < 1 || v > 5) {
+      return { error: `${label} needs a 1–5 rating.` };
+    }
+  }
+  if (usage !== "daily" && usage !== "few_weekly" && usage !== "rarely") {
+    return { error: "Pick how often you used the app." };
+  }
+  if (bugs === null) {
+    return {
+      error:
+        "Each bug needs a short description and a severity (low / medium / high).",
+    };
+  }
+  if (suggestions.length > 2000) {
+    return { error: "Suggestions are limited to 2000 characters." };
+  }
+
+  const { data, error } = await supabase.rpc("submit_feedback", {
+    eng: engagementId,
+    ftype,
+    stability,
+    ux,
+    value_score: value,
+    bugs,
+    suggestions: suggestions || null,
+    usage_freq: usage,
+  });
+
+  if (error) {
+    return {
+      error:
+        mapRequestFunctionError(error.message) ??
+        "Could not submit the feedback. Please try again.",
+    };
+  }
+
+  await dispatchNotificationEmails(notificationsFromResult(data));
+  revalidateRequestPages(requestId);
+  revalidatePath(`/engagements/${engagementId}/feedback`);
+
+  return {
+    success:
+      jsonField(data, "completed") === true
+        ? "completed" // the form renders the celebration state for this
+        : "Mid-test feedback submitted — thank you! It's now in the developer's Feedback Hub.",
+  };
+}
+
+// ------------------------------------------------------------
+// addFeedbackAddendum (F4 edge case — tester, write-once)
+// ------------------------------------------------------------
+
+export async function addFeedbackAddendum(
+  _prev: EngagementActionState,
+  formData: FormData,
+): Promise<EngagementActionState> {
+  const { supabase } = await requireOnboardedUser();
+
+  const feedbackId = String(formData.get("feedback_id") ?? "");
+  const engagementId = String(formData.get("engagement_id") ?? "");
+  const requestId = String(formData.get("request_id") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!note) return { error: "The addendum can't be empty." };
+  if (note.length > 1000) {
+    return { error: "The addendum is limited to 1000 characters." };
+  }
+
+  const { error } = await supabase.rpc("add_feedback_addendum", {
+    fb: feedbackId,
+    note,
+  });
+
+  if (error) {
+    return {
+      error:
+        mapRequestFunctionError(error.message) ??
+        "Could not save the addendum. Please try again.",
+    };
+  }
+
+  revalidateRequestPages(requestId);
+  revalidatePath(`/engagements/${engagementId}/feedback`);
+  return { success: "Addendum saved — it now appears alongside your feedback." };
+}
+
+// ------------------------------------------------------------
+// rateFeedback (SPEC Flow 5 step 2, §7 — request owner)
+// ------------------------------------------------------------
+
+export async function rateFeedback(
+  _prev: EngagementActionState,
+  formData: FormData,
+): Promise<EngagementActionState> {
+  const { supabase } = await requireOnboardedUser();
+
+  const feedbackId = String(formData.get("feedback_id") ?? "");
+  const requestId = String(formData.get("request_id") ?? "");
+  const rating = String(formData.get("rating") ?? "");
+
+  if (rating !== "helpful" && rating !== "not_helpful") {
+    return { error: "Unknown rating." };
+  }
+
+  const { data, error } = await supabase.rpc("rate_feedback", {
+    fb: feedbackId,
+    rating,
+  });
+
+  if (error) {
+    return {
+      error:
+        mapRequestFunctionError(error.message) ??
+        "Could not save the rating. Please try again.",
+    };
+  }
+
+  await dispatchNotificationEmails(notificationsFromResult(data));
+  revalidateRequestPages(requestId);
+
+  return {
+    success:
+      jsonField(data, "bonus") === 1
+        ? "Rated helpful — a +1 bonus credit was sent to the tester."
+        : "Rating saved.",
+  };
+}
+
+// ------------------------------------------------------------
 // requestReplacement (SPEC Flow 4 error state, §7 — request owner)
 // ------------------------------------------------------------
 

@@ -114,6 +114,40 @@ function emailContent(
         body: `Your test request for ${app} was recruiting for 30 days without a confirmed tester and has expired.${refund > 0 ? `\n\n${refund} escrowed credit${refund === 1 ? "" : "s"} were refunded to your balance.` : ""}\n\nYou can publish a fresh request any time.`,
       };
     }
+    case "checkin_reminder_3d":
+      return {
+        subject: `No check-in on "${app}" for 3 days`,
+        body: `You haven't checked in on ${app} for 3 days. Open the app, use it, and check in — 2 more inactive days marks your engagement at risk (−5 reliability).\n\n${appUrl("/dashboard#my-tests")}`,
+      };
+    case "feedback_prompt_mid":
+      return {
+        subject: `Mid-test feedback due for "${app}"`,
+        body: `You've reached day 7 of your test of ${app} — a one-minute mid-test feedback is due.\n\n${appUrl(`/engagements/${str(p, "engagement_id")}/feedback?type=mid`)}`,
+      };
+    case "feedback_prompt_final":
+      return {
+        subject: `Final feedback due for "${app}" — complete your test`,
+        body: `Day 14 of your test of ${app}! Submit the final feedback to complete the test and release your escrowed credit.\n\n${appUrl(`/engagements/${str(p, "engagement_id")}/feedback?type=final`)}`,
+      };
+    case "engagement_completed": {
+      const score = typeof p.reliability_score === "number" ? p.reliability_score : null;
+      return {
+        subject: `Test of "${app}" completed — +1 credit released`,
+        body: `You completed the full 14-day test of ${app}. Your escrowed credit was released (+1)${score !== null ? ` and your reliability score is now ${score}` : ""}.\n\nOne more thing: please STAY OPTED IN on Google Play until the developer's request finishes its 14-day streak — leaving early can still hurt their approval.\n\n${request}`,
+      };
+    }
+    case "feedback_received": {
+      const ftype = str(p, "feedback_type") === "final" ? "Final" : "Mid-test";
+      return {
+        subject: `${ftype} feedback from ${tester} on "${app}"`,
+        body: `${tester} submitted ${ftype.toLowerCase()} feedback on ${app}. It's waiting in your Feedback Hub${ftype === "Final" ? " — rate it helpful to send them a +1 bonus credit" : ""}.\n\n${manage}`,
+      };
+    }
+    case "bonus_credit":
+      return {
+        subject: `+1 bonus credit for your feedback on "${app}"`,
+        body: `The developer of ${app} rated your feedback helpful — a +1 bonus credit was added to your balance. Thanks for testing thoroughly!`,
+      };
     default:
       return null;
   }
