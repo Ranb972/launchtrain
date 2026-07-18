@@ -49,9 +49,9 @@ LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (c
 - [x] AI provider layer (env-swappable, SPEC §5.1)
 - [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund (manually verified end-to-end: creation, founding publish, freeze rules, grow-only slots, public board, guest view, cancel + refund)
 - [x] F3 Engagement lifecycle & the two clocks — join/confirm/drop/replacement, two-clock daily cron, in-app notifications + bell, seed/timetravel harness (verified end-to-end: 51-check scripted walkthrough, `npm run walkthrough`, plus a manual UI pass)
-- [ ] F4 Check-ins & structured feedback + Reliability Score ← **implemented (mobile bottom nav, daily check-ins with UTC lock + at-risk recovery, mid/final feedback with atomic completion + escrow release, helpful-bonus rating, −5 penalty live, Feedback Hub; 93-check walkthrough green); awaiting manual UI pass**
-- [ ] F6 Credits ledger with escrow + founding phase
-- [ ] F5 AI Submission Dossier
+- [x] F4 Check-ins & structured feedback + Reliability Score — mobile bottom nav, daily check-ins with UTC lock + at-risk recovery, mid/final feedback with atomic completion + escrow release, helpful-bonus rating, −5 penalty live, Feedback Hub (verified three ways: 93-check scripted walkthrough, full manual tester journey join → check-in → mid → final → completion + credit, and the 9-check Playwright visual gallery in `docs/qa/f4/`)
+- [ ] F5 AI Submission Dossier ← **up next**
+- [ ] F6 Credits ledger with escrow + founding phase (+ `/profile/[id]` public profile page)
 - [ ] Email + in-app notifications
 
 Phases 2–3 (automated launch trains, reputation tiers, analytics, deep-link verification, PWA) are specced in [SPEC.md](SPEC.md) §10.
@@ -119,6 +119,7 @@ The engagement lifecycle can't be verified by clicking alone (it needs 12+ teste
 | `npm run cron:daily` / `npm run cron:reminders` | Trigger the local cron routes with `CRON_SECRET` (dev server must be running). |
 | `npm run inspect -- --request <id>` | Read-only snapshot: status, streak fields, slot counts, engagement breakdown. |
 | `npm run walkthrough` | Scripted end-to-end verification of the full F3+F4 lifecycle (93 checks, PASS/FAIL table). Pauses between stages with browser pointers; `-- --no-pause` for CI-style runs. Re-runnable. |
+| `npm run visual:pass` | Playwright browser pass over the visual checklist: mobile bottom nav, day-14 feedback gate, Feedback Hub rating flow, notifications sweep. Authenticates as a seeded user (service-role-minted session) and saves a self-checking screenshot gallery to `docs/qa/f4/`. |
 | `npm test` | Unit tests for the pure two-clock math, transition guards, and F4 check-in/feedback rules. |
 
 ## Screenshots
