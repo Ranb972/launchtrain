@@ -1,7 +1,7 @@
 # LaunchTrain — Product Spec (SPEC.md)
-**Version:** 1.6 | **Date:** 2026-07-17 | **UI language:** English only | **Target market:** Global (US/EU first)
+**Version:** 1.7 | **Date:** 2026-07-18 | **UI language:** English only | **Target market:** Global (US/EU first)
 **Status:** Source of truth for implementation. The Hebrew companion document is for the product owner; if they ever diverge, THIS file governs the code.
-**Changelog:** 1.6 (2026-07-17) — F3 engagement lifecycle & two clocks: approved implementation rules recorded in F3 (completed engagements keep counting toward the simultaneous 12; slot occupancy vs streak count split; `streak_ok_since`/`streak_last_counted_day` bookkeeping with event-driven breaks and an idempotent daily cron; pending testers cancel penalty-free at any time; `join_blocked_until` cooldown; −5 at_risk penalty deferred to F4; 30-day expiry in cron + `request_expired` notification; replacement once per at-risk engagement; service-role seed wrappers for the dev harness). | 1.5 (2026-07-12) — F2 post-publish edit rules: identity/eligibility fields frozen after publish, slots grow-only with escrow-backed atomic growth. | 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
+**Changelog:** 1.7 (2026-07-18) — F4 check-ins & structured feedback: approved implementation rules recorded in F4 (at-risk recovery via check-in without penalty refund; 3/week as a display-only rolling meter; −5 per at-risk flip with cooldown, now active; re-arming day-3 check-in reminder; mid ≥ day 7 / final ≥ day 14 gates with final always completing atomically — escrow release +1, reliability +2 cap 100; feedback immutable by privilege with a write-once addendum; rating applies to FINAL feedback only, idempotent, not_helpful silent; feedback prompts via marker columns; `/engagements/[id]/feedback` page). **Corrective (approved):** `cancel_request` refund now deducts escrow already released by completions — mint = burn outranks the F2 wording. SPEC §8 mobile bottom nav implemented; "Profile" maps to `/settings` until `/profile/[id]` lands with F6. | 1.6 (2026-07-17) — F3 engagement lifecycle & two clocks: approved implementation rules recorded in F3 (completed engagements keep counting toward the simultaneous 12; slot occupancy vs streak count split; `streak_ok_since`/`streak_last_counted_day` bookkeeping with event-driven breaks and an idempotent daily cron; pending testers cancel penalty-free at any time; `join_blocked_until` cooldown; −5 at_risk penalty deferred to F4; 30-day expiry in cron + `request_expired` notification; replacement once per at-risk engagement; service-role seed wrappers for the dev harness). | 1.5 (2026-07-12) — F2 post-publish edit rules: identity/eligibility fields frozen after publish, slots grow-only with escrow-backed atomic growth. | 1.4 (2026-07-11) — device data integrity: manufacturer becomes a curated select (+ "Other" free text), Apple/iOS manufacturer values rejected, `android_version` bounded 8–30 in form, server action, and DB CHECK. | 1.3 and earlier — see git history.
 
 > **Product thesis:** Everyone else sells testers. LaunchTrain sells the approval.
 > The single success metric is the % of developers who obtain Google Play Production Access.
@@ -168,6 +168,17 @@
 - **Description:** Collecting the engagement evidence: daily check-ins, mid-test (day 7), final feedback (day 14).
 - **User-facing behavior:** Big check-in button in My Tests; short structured forms (no essays) — one minute to fill.
 - **Business logic:** Check-in: once per engagement per UTC day, minimum 3 per week. Final feedback unlocks from engagement day 14. Reliability Score: starts at 100; `completed` +2 (cap 100); `dropped` −15; `at_risk` −5; below 60 → 14-day join cooldown.
+- **Implementation rules (v1.7, approved):**
+  1. **Check-in recovery:** a check-in on an `at_risk` engagement returns it to `confirmed`, updates `last_checkin_at`, and re-arms the day-3 reminder. The −5 is NOT refunded (the score recovers via the +2 on completion); no notification for recovery. The once-per-UTC-day rule is DB-level (unique index on `(engagement_id, UTC date)`).
+  2. **3/week cadence** (`system_config.checkin_min_weekly`) is a display-only meter over a rolling last-7-UTC-days window — enforcement stays with the 5-day at-risk mechanism.
+  3. **−5 per at-risk FLIP** (not per day), applied in the daily cron with the <60 → `join_blocked_until` cooldown; a re-flip after recovery costs another −5. Activity source is `COALESCE(last_checkin_at, confirmed_at)` — the fallback now only covers engagements with zero check-ins.
+  4. **Day-3 check-in reminder** in the hourly cron (`checkin_reminded_at`, cleared on every check-in — each fresh 3-day gap reminds once). Sent to `confirmed` engagements only; at-risk ones already received the harsher notice.
+  5. **Feedback gates:** mid from engagement day ≥ 7 (no upper bound), final from day ≥ 14; both require a live engagement. Final ALWAYS completes (the gate guarantees day ≥ 14): engagement `completed`, `escrow_release` +1 settled to the tester, reliability +2 (cap 100), notifications — one DB transaction inside `submit_feedback` (which locks the request row first, serializing completions against `cancel_request` releases).
+  6. **Immutability by privilege:** feedback has zero client UPDATE grants; `add_feedback_addendum` is write-once (`LT_ADDENDUM_EXISTS` after); `rate_feedback` touches only `developer_rating`.
+  7. **Rating applies to FINAL feedback only** (v1.7 clarification of Flow 5 "each feedback"). Repeating the same rating → no-op success (never a second bonus); changing it → `LT_ALREADY_RATED`. `not_helpful` mints nothing and notifies nobody. Helpful mints the +1 `bonus` (settled, system source, engagement-linked).
+  8. **Feedback prompts** (`feedback_prompt_mid` day ≥ 7 / `feedback_prompt_final` day ≥ 14) fire once from the daily cron via marker columns, skipped when the feedback already exists. Tester-side forms live on `/engagements/[id]/feedback` (§7).
+  9. **CORRECTIVE (approved):** `cancel_request` refund = escrow held − releases at cancel − escrow already released by completions. The original F2 formula would over-refund once completions exist; mint = burn outranks the earlier wording.
+  10. New notification type ids: `checkin_reminder_3d`, `feedback_prompt_mid`, `feedback_prompt_final`, `engagement_completed`, `feedback_received`, `bonus_credit`. Completed-tester copy actively encourages staying opted in until the request finishes its streak (F3 rule 1 forward note, now implemented).
 - **Edge cases:** An "issue" check-in requires a note. Feedback is immutable after submission (evidential integrity) — an addendum note may be added.
 - **Priority:** MVP
 
@@ -318,6 +329,9 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | ended_at | timestamptz | no | v1.6: set on entering dropped/cancelled |
 | replacement_requested_at | timestamptz | no | v1.6: once-per-engagement replacement marker (F3 rule 8) |
 | confirm_reminded_at | timestamptz | no | v1.6: 48h reminder sent marker |
+| checkin_reminded_at | timestamptz | no | v1.7: day-3 reminder marker, cleared by each check-in (F4 rule 4) |
+| feedback_mid_prompted_at | timestamptz | no | v1.7: day-7 prompt sent (F4 rule 8) |
+| feedback_final_prompted_at | timestamptz | no | v1.7: day-14 prompt sent (F4 rule 8) |
 
 > **Unique constraint:** (request_id, tester_id) among non-terminal rows — one tester per request. A re-join after drop = a new row, allowed only if the previous row is dropped/cancelled.
 
@@ -408,6 +422,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 | /admin | Config, entity search, admin_adjust, suspensions | Yes (admin) |
 | /onboarding | Profile completion form | Yes |
 | /notifications | Notification list + mark read (bell target) — v1.6 | Yes |
+| /engagements/[id]/feedback | Tester feedback form (mid/final via ?type=), immutable view + addendum — v1.7 | Yes (tester) |
 
 ### Server Actions / API
 | Method | Route / Action | Description | Auth |
@@ -436,7 +451,7 @@ Browser ── Next.js (Vercel) ──┬── Supabase Postgres (RLS)
 ## 8. UI/UX Requirements (MVP)
 
 - **Pages/screens:** the 12 pages of §7. UI language: **English only**. Tone: friendly-playful but professional ("All aboard", "Next station: Production") — sparingly; short copy.
-- **Navigation:** Persistent header: Logo | Board | Dashboard | Credits (balance) | bell | Avatar. Mobile: bottom nav (Board / My Tests / My Requests / Profile).
+- **Navigation:** Persistent header: Logo | Board | Dashboard | Credits (balance) | bell | Avatar. Mobile: bottom nav (Board / My Tests / My Requests / Profile). *(v1.7: bottom nav implemented, auth-only; header collapses to Logo + bell + avatar on mobile; "Profile" maps to `/settings` as an approved interim until `/profile/[id]` lands with the F6 slice; Sign out lives on `/settings`.)*
 - **Responsive:** Mobile-first — testers check in from their phones. Standard Tailwind breakpoints (sm/md/lg).
 - **Key UI components:** RequestCard, SlotBuffer (visual 14/12), **TrackProgress** — a railway-track progress bar with 14 stations (the brand's signature component), CheckinButton (done/locked states), StatusChip, FeedbackForm, CreditBadge, NotificationBell, DossierViewer.
 - **Design direction:** railway-journey metaphor: signal-green accent on dark neutrals; station/ticket iconography. Clean, not cartoonish. (Full visual pass at build time with the frontend-design skill.)

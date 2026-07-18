@@ -49,7 +49,7 @@ LaunchTrain is built spec-first: [SPEC.md](SPEC.md) is the governing document (c
 - [x] AI provider layer (env-swappable, SPEC §5.1)
 - [x] F2 Test Request Board — create/publish requests with escrowed credits, public board with filters, manage page with freeze rules & cancel/refund (manually verified end-to-end: creation, founding publish, freeze rules, grow-only slots, public board, guest view, cancel + refund)
 - [x] F3 Engagement lifecycle & the two clocks — join/confirm/drop/replacement, two-clock daily cron, in-app notifications + bell, seed/timetravel harness (verified end-to-end: 51-check scripted walkthrough, `npm run walkthrough`, plus a manual UI pass)
-- [ ] F4 Check-ins & structured feedback + Reliability Score ← **up next** (first task: mobile header — logo/nav collide on narrow viewports, Sign out cut off; implement the SPEC §8 mobile bottom nav: Board / My Tests / My Requests / Profile)
+- [ ] F4 Check-ins & structured feedback + Reliability Score ← **implemented (mobile bottom nav, daily check-ins with UTC lock + at-risk recovery, mid/final feedback with atomic completion + escrow release, helpful-bonus rating, −5 penalty live, Feedback Hub; 93-check walkthrough green); awaiting manual UI pass**
 - [ ] F6 Credits ledger with escrow + founding phase
 - [ ] F5 AI Submission Dossier
 - [ ] Email + in-app notifications
@@ -91,6 +91,8 @@ Phases 2–3 (automated launch trains, reputation tiers, analytics, deep-link ve
    4. `supabase/migrations/20260712120000_storage_screenshots.sql`
    5. `supabase/migrations/20260712130000_f2_publish_cancel.sql`
    6. `supabase/migrations/20260717120000_f3_engagement_lifecycle.sql`
+   7. `supabase/migrations/20260717150000_f3_seed_replacement.sql`
+   8. `supabase/migrations/20260718120000_f4_checkins_feedback.sql`
 
 4. Start the dev server:
 
@@ -111,10 +113,13 @@ The engagement lifecycle can't be verified by clicking alone (it needs 12+ teste
 | `npm run seed:join -- --request <id> --count <n> [--opted-in] [--tester <email>]` | Joins n seeded testers through the real join path (eligibility, capacity race, notifications). |
 | `npm run seed:confirm -- --request <id> [--count <n>] [--tester <email>]` | The request owner confirms pending testers (crossing 12 starts the Google clock). |
 | `npm run seed:drop -- --request <id> [--count <n>] [--pending]` | A seeded tester drops (−15, streak break if below 12) or withdraws a pending join (`--pending`). Never touches real accounts. |
-| `npm run timetravel -- --request <id> --days <n>` | Shifts every clock-relevant timestamp back n days — a 14-day streak in minutes. |
+| `npm run seed:checkin -- --request <id> [--count <n>] [--issue] [--tester <email>]` | Seeded testers check in today (real path: UTC day lock, at-risk recovery). `--issue` reports an issue with a note. |
+| `npm run seed:feedback -- --request <id> --type mid\|final [--count <n>] [--tester <email>]` | Seeded testers submit feedback (day gates apply; final completes the engagement and releases the escrowed credit). |
+| `npm run timetravel -- --request <id> --days <n>` | Shifts every clock-relevant timestamp back n days — engagements, check-ins, feedback, and streak fields together. A 14-day streak in minutes. |
 | `npm run cron:daily` / `npm run cron:reminders` | Trigger the local cron routes with `CRON_SECRET` (dev server must be running). |
 | `npm run inspect -- --request <id>` | Read-only snapshot: status, streak fields, slot counts, engagement breakdown. |
-| `npm test` | Unit tests for the pure two-clock math and transition guards. |
+| `npm run walkthrough` | Scripted end-to-end verification of the full F3+F4 lifecycle (93 checks, PASS/FAIL table). Pauses between stages with browser pointers; `-- --no-pause` for CI-style runs. Re-runnable. |
+| `npm test` | Unit tests for the pure two-clock math, transition guards, and F4 check-in/feedback rules. |
 
 ## Screenshots
 
