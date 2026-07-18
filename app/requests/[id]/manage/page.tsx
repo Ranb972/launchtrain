@@ -3,7 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CancelSection } from "@/components/cancel-section";
 import { EngagementStatusChip } from "@/components/engagement-status-chip";
+import { FeedbackCard } from "@/components/feedback-card";
 import { PublishedEditForm } from "@/components/published-edit-form";
+import { RateFeedbackButtons } from "@/components/rate-feedback-buttons";
 import { RequestForm } from "@/components/request-form";
 import { SlotBuffer } from "@/components/slot-buffer";
 import { FoundingBadge, StatusChip } from "@/components/status-chip";
@@ -112,6 +114,31 @@ export default async function ManageRequestPage({
     ["dropped", "cancelled"].includes(e.status),
   );
   const now = new Date();
+
+  // Feedback Hub (SPEC Flow 5): every incoming feedback + issue check-ins.
+  const engagementIds = allEngagements.map((e) => e.id);
+  const [{ data: feedbackRows }, { data: issueCheckins }] = await Promise.all([
+    engagementIds.length > 0
+      ? supabase
+          .from("feedback")
+          .select("*")
+          .in("engagement_id", engagementIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as never[] }),
+    engagementIds.length > 0
+      ? supabase
+          .from("checkins")
+          .select("engagement_id, note, created_at")
+          .in("engagement_id", engagementIds)
+          .eq("status", "issue")
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
+  const allFeedback = feedbackRows ?? [];
+  const engagementById = new Map(allEngagements.map((e) => [e.id, e] as const));
+  const finalCount = allFeedback.filter((f) => f.type === "final").length;
+  const midCount = allFeedback.length - finalCount;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -311,6 +338,92 @@ export default async function ManageRequestPage({
               </ul>
             </details>
           )}
+        </section>
+      )}
+
+      {!isDraft && (allFeedback.length > 0 || (issueCheckins ?? []).length > 0) && (
+        <section className="mt-10">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            Feedback Hub
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            {finalCount} final · {midCount} mid-test — this evidence feeds the
+            Submission Dossier{finalCount < 8 ? " (Google favors 8+ final feedbacks)" : ""}.
+          </p>
+
+          {(issueCheckins ?? []).length > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-900/50 bg-amber-950/20 p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-400">
+                Issues reported in check-ins
+              </h3>
+              <ul className="mt-2 space-y-1.5">
+                {(issueCheckins ?? []).map((c, i) => {
+                  const eng = engagementById.get(c.engagement_id);
+                  return (
+                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <span className="shrink-0 text-zinc-500">
+                        {eng
+                          ? (profileById.get(eng.tester_id)?.display_name ?? "Tester")
+                          : "Tester"}
+                        :
+                      </span>
+                      <span className="min-w-0">{c.note}</span>
+                      <span className="ml-auto shrink-0 text-xs text-zinc-600">
+                        {timeAgoLabel(c.created_at, now)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-4 space-y-4">
+            {allFeedback.map((f) => {
+              const eng = engagementById.get(f.engagement_id);
+              const tester = eng
+                ? (profileById.get(eng.tester_id)?.display_name ?? "Tester")
+                : "Tester";
+              return (
+                <div key={f.id}>
+                  <div className="mb-1.5 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-semibold">{tester}</span>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                        f.type === "final"
+                          ? "border-emerald-800 bg-emerald-950/60 text-emerald-300"
+                          : "border-zinc-700 bg-zinc-800/60 text-zinc-300"
+                      }`}
+                    >
+                      {f.type === "final" ? "Final" : "Mid-test"}
+                    </span>
+                    {eng?.status === "completed" && (
+                      <EngagementStatusChip status="completed" />
+                    )}
+                    <span className="ml-auto text-xs text-zinc-600">
+                      {timeAgoLabel(f.created_at, now)}
+                    </span>
+                  </div>
+                  <FeedbackCard feedback={f}>
+                    {f.type === "final" ? (
+                      f.developer_rating ? (
+                        <p className="text-xs text-zinc-500">
+                          {f.developer_rating === "helpful"
+                            ? "✓ Rated helpful — +1 bonus credit sent to the tester."
+                            : "Rated not helpful."}
+                        </p>
+                      ) : (
+                        <RateFeedbackButtons
+                          feedbackId={f.id}
+                          requestId={request.id}
+                        />
+                      )
+                    ) : null}
+                  </FeedbackCard>
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 
