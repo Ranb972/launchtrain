@@ -66,14 +66,49 @@ export async function timetravelRequest(
         ended_at: shiftTs(e.ended_at, days),
         replacement_requested_at: shiftTs(e.replacement_requested_at, days),
         confirm_reminded_at: shiftTs(e.confirm_reminded_at, days),
+        checkin_reminded_at: shiftTs(e.checkin_reminded_at, days),
+        feedback_mid_prompted_at: shiftTs(e.feedback_mid_prompted_at, days),
+        feedback_final_prompted_at: shiftTs(e.feedback_final_prompted_at, days),
       })
       .eq("id", e.id);
     if (error) fail(`engagement ${e.id} update failed: ${error.message}`);
     shifted++;
   }
 
+  // Check-in and feedback rows must move too: the once-per-UTC-day unique
+  // index keys on checkins.created_at, so it has to stay consistent with the
+  // shifted last_checkin_at (all rows move by the same delta — uniqueness is
+  // preserved).
+  const engagementIds = (engagements ?? []).map((e) => e.id);
+  let shiftedCheckins = 0;
+  if (engagementIds.length > 0) {
+    const { data: checkins } = await admin
+      .from("checkins")
+      .select("id, created_at")
+      .in("engagement_id", engagementIds);
+    for (const c of checkins ?? []) {
+      const { error } = await admin
+        .from("checkins")
+        .update({ created_at: shiftTs(c.created_at, days) ?? c.created_at })
+        .eq("id", c.id);
+      if (error) fail(`checkin ${c.id} update failed: ${error.message}`);
+      shiftedCheckins++;
+    }
+    const { data: feedback } = await admin
+      .from("feedback")
+      .select("id, created_at")
+      .in("engagement_id", engagementIds);
+    for (const f of feedback ?? []) {
+      const { error } = await admin
+        .from("feedback")
+        .update({ created_at: shiftTs(f.created_at, days) ?? f.created_at })
+        .eq("id", f.id);
+      if (error) fail(`feedback ${f.id} update failed: ${error.message}`);
+    }
+  }
+
   console.log(
-    `✓ "${request.app_name}": request clocks and ${shifted} engagement(s) moved ${days} day(s) into the past.`,
+    `✓ "${request.app_name}": request clocks, ${shifted} engagement(s), and ${shiftedCheckins} check-in(s) moved ${days} day(s) into the past.`,
   );
   return shifted;
 }

@@ -13,6 +13,8 @@
     "seed:join": "tsx --env-file=.env.local scripts/seed-join.ts",
     "seed:confirm": "tsx --env-file=.env.local scripts/seed-confirm.ts",
     "seed:drop": "tsx --env-file=.env.local scripts/seed-drop.ts",
+    "seed:checkin": "tsx --env-file=.env.local scripts/seed-checkin.ts",
+    "seed:feedback": "tsx --env-file=.env.local scripts/seed-feedback.ts",
     "timetravel": "tsx --env-file=.env.local scripts/timetravel.ts",
     "inspect": "tsx --env-file=.env.local scripts/inspect.ts",
     "cron:daily": "tsx --env-file=.env.local scripts/trigger-cron.ts daily",

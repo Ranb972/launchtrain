@@ -379,7 +379,9 @@ async function main() {
     eng: lastConfirmed.id,
   });
   check("drop succeeds", "ok", dropError ? dropError.message : "ok");
-  check("dropped tester reliability 100−15", 85, await reliabilityOf(admin, lastConfirmed.tester_id));
+  // F4: the Stage 6 five-day shift flipped everyone at_risk (−5 each), so
+  // the dropper stands at 95 before the −15 → 80.
+  check("dropped tester reliability 100−5(flip)−15(drop)", 80, await reliabilityOf(admin, lastConfirmed.tester_id));
   req = await requestRow(admin, reqId);
   slots = await slotCounts(admin, reqId);
   check("status flips to at_risk immediately", "at_risk", req.status);
@@ -407,7 +409,7 @@ async function main() {
   const { error: refillConfirmError } = await admin.rpc("seed_confirm_engagement", {
     eng: engRefill,
   });
-  check("rejoin after drop + confirm (reliability 85 ≥ 60)", "ok", refillConfirmError ? refillConfirmError.message : "ok");
+  check("rejoin after drop + confirm (reliability 80 ≥ 60)", "ok", refillConfirmError ? refillConfirmError.message : "ok");
   req = await requestRow(admin, reqId);
   check("status back to active", "active", req.status);
   check("streak stays 0 until a full day passes", 0, req.streak_days);
@@ -529,8 +531,340 @@ async function main() {
   );
   await admin.from("users").update({ reliability_score: 55 }).eq("id", lowscore.id);
   check("lowscore restored to 55 for future runs", "done", "done");
+  await pause(["Nothing visual — script output only."]);
+
+  // ================= F4 stages =================
+
+  // ---- Stage 13: check-in mechanics + at-risk recovery ----
+  stage("Stage 13 — Check-in: recovery, −5 verified, once-per-day lock");
+  const { data: firstAtRisk } = await admin
+    .from("engagements")
+    .select("id, tester_id")
+    .eq("request_id", reqId)
+    .eq("status", "at_risk")
+    .order("joined_at")
+    .limit(1)
+    .single();
+  if (!firstAtRisk) fail("no at_risk engagement for the check-in stage");
+  const recoveryEng = firstAtRisk.id;
+  const recoveryTester = firstAtRisk.tester_id;
+  check(
+    "at-risk flip applied −5 exactly once (100−5)",
+    95,
+    await reliabilityOf(admin, recoveryTester),
+  );
+  const { data: checkinResult, error: checkinError } = await admin.rpc(
+    "seed_create_checkin",
+    { eng: recoveryEng, cstatus: "ok", note: null },
+  );
+  check("check-in succeeds", "ok", checkinError ? checkinError.message : "ok");
+  check(
+    "check-in recovers at_risk → confirmed",
+    true,
+    checkinResult && typeof checkinResult === "object" && !Array.isArray(checkinResult)
+      ? (checkinResult as Record<string, Json>).recovered === true
+      : false,
+  );
+  const { data: recoveredRow } = await admin
+    .from("engagements")
+    .select("status, last_checkin_at, checkin_count, checkin_reminded_at")
+    .eq("id", recoveryEng)
+    .single();
+  check("engagement status after recovery", "confirmed", recoveredRow?.status);
+  check("last_checkin_at stamped", "set", recoveredRow?.last_checkin_at ? "set" : "null");
+  check("checkin_count", 1, recoveredRow?.checkin_count);
+  check(
+    "recovery does NOT refund the −5 (score stays 95)",
+    95,
+    await reliabilityOf(admin, recoveryTester),
+  );
+  const dayLockCode = await rpcExpectErrorAny(admin, "seed_create_checkin", {
+    eng: recoveryEng,
+    cstatus: "ok",
+    note: null,
+  });
+  check(
+    "second check-in same UTC day blocked",
+    "LT_ALREADY_CHECKED_IN_TODAY",
+    dayLockCode,
+  );
+  await pause([
+    `${BASE}/dashboard#my-tests → on YOUR engagements the same button shows a locked "Checked in today ✓" state after use (this stage exercised a seeded tester).`,
+  ]);
+
+  // ---- Stage 14: feedback gates + prompts ----
+  stage("Stage 14 — Feedback: day-7 mid unlocked, day-14 final gated, prompts once");
+  // The refill engagement (Stage 8) sits mid-window: shifted 2+5+3 = 10 days.
+  const { data: refillRow } = await admin
+    .from("engagements")
+    .select("id, tester_id, confirmed_at, status")
+    .eq("id", engRefill)
+    .single();
+  if (!refillRow?.confirmed_at) fail("refill engagement lost its confirmed_at");
+  const refillDay =
+    Math.floor(
+      (Date.now() - Date.parse(refillRow.confirmed_at)) / 86_400_000,
+    ) + 1;
+  check(
+    "refill engagement sits between day 7 and 13",
+    "7 <= day < 14",
+    `day ${refillDay}`,
+    refillDay >= 7 && refillDay < 14,
+  );
+  await runCronRoute("daily-clocks");
+  const { data: promptedRow } = await admin
+    .from("engagements")
+    .select("feedback_mid_prompted_at, feedback_final_prompted_at")
+    .eq("id", engRefill)
+    .single();
+  check("cron prompted mid (day ≥ 7)", "set", promptedRow?.feedback_mid_prompted_at ? "set" : "null");
+  check("cron did NOT prompt final (day < 14)", "null", promptedRow?.feedback_final_prompted_at ?? "null");
+  check(
+    "feedback_prompt_mid notification",
+    1,
+    await notifCount(admin, refillRow.tester_id, "feedback_prompt_mid", reqId),
+  );
+  await runCronRoute("daily-clocks");
+  check(
+    "prompt not re-sent on the next cron",
+    1,
+    await notifCount(admin, refillRow.tester_id, "feedback_prompt_mid", reqId),
+  );
+  const tooEarlyCode = await rpcExpectErrorAny(admin, "seed_submit_feedback", {
+    eng: engRefill,
+    ftype: "final",
+    stability: 4,
+    ux: 4,
+    value_score: 4,
+    bugs: [],
+    suggestions: null,
+    usage_freq: "daily",
+  });
+  check("final before day 14 rejected", "LT_FEEDBACK_TOO_EARLY:14", tooEarlyCode);
+  const { error: midError } = await admin.rpc("seed_submit_feedback", {
+    eng: engRefill,
+    ftype: "mid",
+    stability: 4,
+    ux: 3,
+    value_score: 5,
+    bugs: [{ text: "Back button exits instead of going up.", severity: "medium" }],
+    suggestions: "Consider a bottom nav.",
+    usage_freq: "daily",
+  });
+  check("mid feedback on day ≥ 7 accepted", "ok", midError ? midError.message : "ok");
+  const dupMidCode = await rpcExpectErrorAny(admin, "seed_submit_feedback", {
+    eng: engRefill,
+    ftype: "mid",
+    stability: 5,
+    ux: 5,
+    value_score: 5,
+    bugs: [],
+    suggestions: null,
+    usage_freq: "daily",
+  });
+  check("duplicate mid rejected (immutable)", "LT_FEEDBACK_EXISTS", dupMidCode);
+  check(
+    "feedback_received notification to owner",
+    1,
+    await notifCount(admin, owner.id, "feedback_received", reqId),
+  );
+  await pause([
+    `${BASE}/requests/${reqId}/manage → Feedback Hub section: 1 mid-test card (bug + suggestion) — visible to the seed owner only, asserted via DB here.`,
+  ]);
+
+  // ---- Stage 15: final feedback completes + escrow release ----
+  stage("Stage 15 — Final feedback → completed + escrow release + A1 live");
+  const { data: finalResult, error: finalError } = await admin.rpc(
+    "seed_submit_feedback",
+    {
+      eng: recoveryEng,
+      ftype: "final",
+      stability: 5,
+      ux: 4,
+      value_score: 4,
+      bugs: [{ text: "Rare crash when offline.", severity: "high" }],
+      suggestions: "Offline mode would seal it.",
+      usage_freq: "few_weekly",
+    },
+  );
+  check("final feedback (day ≥ 14) succeeds", "ok", finalError ? finalError.message : "ok");
+  check(
+    "returns completed=true",
+    true,
+    finalResult && typeof finalResult === "object" && !Array.isArray(finalResult)
+      ? (finalResult as Record<string, Json>).completed === true
+      : false,
+  );
+  const { data: completedRow } = await admin
+    .from("engagements")
+    .select("status, completed_at")
+    .eq("id", recoveryEng)
+    .single();
+  check("engagement status", "completed", completedRow?.status);
+  check("completed_at stamped", "set", completedRow?.completed_at ? "set" : "null");
+  const { data: releaseRows } = await admin
+    .from("credit_transactions")
+    .select("amount, type, status")
+    .eq("engagement_id", recoveryEng)
+    .eq("type", "escrow_release");
+  check("exactly one escrow_release row", 1, (releaseRows ?? []).length);
+  check(
+    "release is +1 settled",
+    "1/settled",
+    releaseRows?.[0] ? `${releaseRows[0].amount}/${releaseRows[0].status}` : "—",
+  );
+  check(
+    "reliability 95 + 2 completion bonus",
+    97,
+    await reliabilityOf(admin, recoveryTester),
+  );
+  check(
+    "engagement_completed notification",
+    1,
+    await notifCount(admin, recoveryTester, "engagement_completed", reqId),
+  );
+  slots = await slotCounts(admin, reqId);
+  req = await requestRow(admin, reqId);
+  check("completed engagement STILL counts toward the 12 (A1 live)", 12, slots.confirmed);
+  check("request stays active", "active", req.status);
+  await pause([
+    `${BASE}/board → the walkthrough card still shows a healthy request (A1: completion didn't dent the 12).`,
+  ]);
+
+  // ---- Stage 16: helpful rating + bonus idempotency ----
+  stage("Stage 16 — Helpful rating: +1 bonus, idempotent, rating is final");
+  const { data: finalFb } = await admin
+    .from("feedback")
+    .select("id")
+    .eq("engagement_id", recoveryEng)
+    .eq("type", "final")
+    .single();
+  if (!finalFb) fail("final feedback row missing");
+  const { data: rate1, error: rateError } = await admin.rpc("seed_rate_feedback", {
+    fb: finalFb.id,
+    rating: "helpful",
+  });
+  check("rate helpful succeeds", "ok", rateError ? rateError.message : "ok");
+  check(
+    "bonus minted (+1)",
+    1,
+    rate1 && typeof rate1 === "object" && !Array.isArray(rate1)
+      ? Number((rate1 as Record<string, Json>).bonus)
+      : NaN,
+  );
+  const bonusCount = async () => {
+    const { data } = await admin
+      .from("credit_transactions")
+      .select("id")
+      .eq("engagement_id", recoveryEng)
+      .eq("type", "bonus");
+    return (data ?? []).length;
+  };
+  check("exactly one bonus row", 1, await bonusCount());
+  const { data: rate2, error: rate2Error } = await admin.rpc("seed_rate_feedback", {
+    fb: finalFb.id,
+    rating: "helpful",
+  });
+  check("repeat helpful is a no-op success", "ok", rate2Error ? rate2Error.message : "ok");
+  check(
+    "repeat reports already_rated",
+    true,
+    rate2 && typeof rate2 === "object" && !Array.isArray(rate2)
+      ? (rate2 as Record<string, Json>).already_rated === true
+      : false,
+  );
+  check("still exactly one bonus row (idempotent)", 1, await bonusCount());
+  const changeCode = await rpcExpectErrorAny(admin, "seed_rate_feedback", {
+    fb: finalFb.id,
+    rating: "not_helpful",
+  });
+  check("changing the rating blocked", "LT_ALREADY_RATED", changeCode);
+  check(
+    "bonus_credit notification to tester",
+    1,
+    await notifCount(admin, recoveryTester, "bonus_credit", reqId),
+  );
+  const { data: testerTx } = await admin
+    .from("credit_transactions")
+    .select("amount")
+    .eq("user_id", recoveryTester)
+    .eq("request_id", reqId);
+  check(
+    "tester earned exactly +2 on this request (release + bonus)",
+    2,
+    (testerTx ?? []).reduce((sum, t) => sum + t.amount, 0),
+  );
+  await pause([
+    `${BASE}/requests/${reqId}/manage → Feedback Hub: the final card shows "✓ Rated helpful — +1 bonus credit sent".`,
+  ]);
+
+  // ---- Stage 17: day-3 check-in reminder + re-arm ----
+  stage("Stage 17 — Day-3 check-in reminder fires once and re-arms");
+  const { data: secondAtRisk } = await admin
+    .from("engagements")
+    .select("id, tester_id")
+    .eq("request_id", reqId)
+    .eq("status", "at_risk")
+    .order("joined_at")
+    .limit(1)
+    .single();
+  if (!secondAtRisk) fail("no at_risk engagement left for the reminder stage");
+  const { error: recover2Error } = await admin.rpc("seed_create_checkin", {
+    eng: secondAtRisk.id,
+    cstatus: "issue",
+    note: "Walkthrough issue: share sheet crashes.",
+  });
+  check("recover a second tester via an issue check-in", "ok", recover2Error ? recover2Error.message : "ok");
+  await timetravelRequest(admin, reqId, 3);
+  await runCronRoute("reminders");
+  const { data: remindedEng } = await admin
+    .from("engagements")
+    .select("checkin_reminded_at")
+    .eq("id", secondAtRisk.id)
+    .single();
+  check("checkin_reminded_at stamped after 3-day gap", "set", remindedEng?.checkin_reminded_at ? "set" : "null");
+  check(
+    "checkin_reminder_3d notification",
+    1,
+    await notifCount(admin, secondAtRisk.tester_id, "checkin_reminder_3d", reqId),
+  );
+  await runCronRoute("reminders");
+  check(
+    "second reminders run adds nothing",
+    1,
+    await notifCount(admin, secondAtRisk.tester_id, "checkin_reminder_3d", reqId),
+  );
+  const { error: rearmError } = await admin.rpc("seed_create_checkin", {
+    eng: secondAtRisk.id,
+    cstatus: "ok",
+    note: null,
+  });
+  check("new check-in allowed (day rows shifted consistently)", "ok", rearmError ? rearmError.message : "ok");
+  const { data: rearmedEng } = await admin
+    .from("engagements")
+    .select("checkin_reminded_at")
+    .eq("id", secondAtRisk.id)
+    .single();
+  check("check-in re-arms the reminder (marker cleared)", "null", rearmedEng?.checkin_reminded_at ?? "null");
+  await pause([
+    `${BASE}/requests/${reqId}/manage → Feedback Hub now also lists the issue check-in ("share sheet crashes").`,
+  ]);
 
   printTableAndExit();
+}
+
+// RPC that is EXPECTED to fail, for the F4 functions (loose arg typing).
+async function rpcExpectErrorAny(
+  admin: Admin,
+  fn:
+    | "seed_create_checkin"
+    | "seed_submit_feedback"
+    | "seed_rate_feedback",
+  args: Record<string, unknown>,
+): Promise<string> {
+  const { error } = await admin.rpc(fn, args as never);
+  if (!error) return "(no error)";
+  return error.message.match(/LT_[A-Z_0-9]+(?::[^\s"]*)?/)?.[0] ?? error.message;
 }
 
 // Join helper via the real path; fails the run on unexpected errors.
